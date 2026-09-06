@@ -60,7 +60,7 @@ func TestApplySetModelRoundTrip(t *testing.T) {
 func TestDryRunDoesNotWrite(t *testing.T) {
 	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
 	before, _ := os.ReadFile(filepath.Join(home, ".codex", "config.toml"))
-	_, err := Apply(Request{
+	rep, err := Apply(Request{
 		Adapter: codex.Adapter{},
 		FS:      fsx.Local{},
 		Home:    home,
@@ -73,6 +73,13 @@ func TestDryRunDoesNotWrite(t *testing.T) {
 	after, _ := os.ReadFile(filepath.Join(home, ".codex", "config.toml"))
 	if string(before) != string(after) {
 		t.Fatal("dry-run mutated file")
+	}
+	if len(rep.Changes) != 1 {
+		t.Fatalf("changes = %#v", rep.Changes)
+	}
+	wantPath := filepath.Join(home, ".codex", "config.toml")
+	if rep.Changes[0].Path != wantPath {
+		t.Fatalf("dry-run Path = %q want %q", rep.Changes[0].Path, wantPath)
 	}
 }
 

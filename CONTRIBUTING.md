@@ -43,12 +43,6 @@ git tag v1.0.1
 git push origin v1.0.1
 ```
 
-Module path is `github.com/oldwinter/hctl`. Empty GitHub repo: https://github.com/oldwinter/hctl
+Module path is `github.com/oldwinter/hctl` (https://github.com/oldwinter/hctl). Do **not** push this Go project to the Rust repo `oldwinter/harnessctl`.
 
-```bash
-git remote add github git@github.com:oldwinter/hctl.git
-git push github main
-git push github v1.0.1
-```
-
-`gh repo create` is not required anymore. Do **not** push this Go project to `oldwinter/harnessctl`.
+`just build` / `just release` inject version metadata via ldflags; plain `go install` leaves commit/date as `unknown`.

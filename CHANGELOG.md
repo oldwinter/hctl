@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- Help text leads with `hctl` (legacy `HARNESSCTL_*` / `~/.harnessctl` names mentioned once for compatibility).
+- `hctl get` without a resource names valid resources and exits with usage code 2.
+- `hctl version` always prints version, commit, and build date (`just build` / `just release` inject via ldflags).
+- `set --dry-run` PATH column shows the config path that would be written.
+- README / CONTRIBUTING install docs match the populated GitHub repo.
+
 ## [1.0.1] - 2026-09-06
 
 Hardening after the 1.0.0 report. Module path no longer collides with the Rust `harnessctl`.
