@@ -1,0 +1,19 @@
+apiVersion = "harnessctl/v1"
+kind = "DesiredState"
+
+[harnesses.codex]
+model = "o4-mini"
+provider = "custom"
+
+[harnesses.claude]
+model = "claude-opus-4"
+
+[harnesses.grok]
+model = "grok-4.5"
+
+[harnesses.hermes]
+model = "anthropic/claude-sonnet-4"
+provider = "custom"
+
+[harnesses.opencode]
+model = "acme/gpt-4.1"

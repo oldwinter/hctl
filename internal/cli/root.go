@@ -11,7 +11,7 @@ import (
 
 // Version is the CLI version string. Override via -ldflags.
 var (
-	Version = "0.2.0"
+	Version = "0.3.0"
 	Commit  = "unknown"
 	Date    = "unknown"
 )
@@ -86,6 +86,7 @@ Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 	root.AddCommand(newDoctorCmd(opts))
 	root.AddCommand(newDiffCmd(opts))
 	root.AddCommand(newSetCmd(opts))
+	root.AddCommand(newApplyCmd(opts))
 	return root
 }
 

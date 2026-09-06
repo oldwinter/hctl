@@ -141,6 +141,44 @@ func TestConfigContextsAndUse(t *testing.T) {
 	}
 }
 
+func TestApplyAndDiffDesired(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	desired := testutil.Testdata(t, "desired.toml")
+	bak := t.TempDir()
+	t.Setenv("HARNESSCTL_BACKUP_DIR", bak)
+	out, err := run(t, "--home", home, "--config", cfg, "diff", "-f", desired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "o4-mini") {
+		t.Fatal(out)
+	}
+	out, err = run(t, "--home", home, "--config", cfg, "apply", "-f", desired, "--dry-run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "dry-run") {
+		t.Fatal(out)
+	}
+	if _, err := run(t, "--home", home, "--config", cfg, "apply", "-f", desired); err != nil {
+		t.Fatal(err)
+	}
+	out, err = run(t, "--home", home, "--config", cfg, "get", "models")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "o4-mini") || !strings.Contains(out, "round-trip") && !strings.Contains(out, "claude-opus-4") {
+		// claude-opus-4 is in desired.toml
+	}
+	if !strings.Contains(out, "claude-opus-4") {
+		t.Fatal(out)
+	}
+	if strings.Contains(out, "sk-test") {
+		t.Fatal("leaked")
+	}
+}
+
 func TestSetModelRoundTrip(t *testing.T) {
 	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
 	cfg := testutil.Testdata(t, "harnessctl.yaml")

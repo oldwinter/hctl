@@ -8,6 +8,8 @@ import (
 
 	"github.com/oldwinter/harnessctl/internal/adapters"
 	"github.com/oldwinter/harnessctl/internal/config"
+	"github.com/oldwinter/harnessctl/internal/desired"
+	"github.com/oldwinter/harnessctl/internal/exitcode"
 	"github.com/oldwinter/harnessctl/internal/model"
 	"github.com/oldwinter/harnessctl/internal/render"
 )
@@ -17,21 +19,25 @@ func newDiffCmd(opts *options) *cobra.Command {
 		aName, bName string
 		contexts     string
 		homeA, homeB string
+		filename     string
 	)
 	cmd := &cobra.Command{
-		Use:   "diff RESOURCE NAME",
-		Short: "Compare a harness snapshot across two contexts or two home directories",
-		Long: `Compare one harness between two sides.
-
-v0.1 executes locally only. Cross-machine SSH diff is v0.2.
-Until then, compare two fixture trees or two home directories:
+		Use:   "diff [RESOURCE NAME]",
+		Short: "Compare harness snapshots or a desired-state file",
+		Long: `Compare one harness between two sides, or desired state vs current:
 
   harnessctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b
-  harnessctl diff harness codex --a mba --b box          # errors if box is ssh
   harnessctl diff harness codex --contexts mba,box
+  harnessctl diff -f testdata/desired.toml
 `,
-		Args: cobra.ExactArgs(2),
+		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if filename != "" {
+				return runDiffDesired(cmd, opts, filename)
+			}
+			if len(args) != 2 {
+				return exitcode.Errorf(exitcode.Usage, "diff harness NAME (or diff -f FILE)")
+			}
 			if !isHarnessResource(args[0]) {
 				return writeErr(cmd, fmt.Errorf("unknown resource %q (want harness)", args[0]))
 			}
@@ -72,7 +78,32 @@ Until then, compare two fixture trees or two home directories:
 	cmd.Flags().StringVar(&contexts, "contexts", "", "comma-separated pair of contexts (e.g. mba,box)")
 	cmd.Flags().StringVar(&homeA, "home-a", "", "home directory A (fixtures / tests; bypasses ssh)")
 	cmd.Flags().StringVar(&homeB, "home-b", "", "home directory B (fixtures / tests; bypasses ssh)")
+	cmd.Flags().StringVarP(&filename, "filename", "f", "", "desired-state file to compare against current context")
 	return cmd
+}
+
+func runDiffDesired(cmd *cobra.Command, opts *options, filename string) error {
+	want, err := desired.Load(filename)
+	if err != nil {
+		return err
+	}
+	_, fsys, home, err := opts.openTarget()
+	if err != nil {
+		return err
+	}
+	snaps, err := adapters.ScanFS(fsys, home)
+	if err != nil {
+		return err
+	}
+	changes := desired.DiffAgainst(want, snaps)
+	if opts.jsonOut {
+		return render.JSON(cmd.OutOrStdout(), map[string]any{
+			"file":    filename,
+			"changes": changes,
+		})
+	}
+	rep := model.ApplyReport{DryRun: true, Changes: changes}
+	return render.ApplyReport(cmd.OutOrStdout(), rep)
 }
 
 func resolveDiffSides(cfg *config.File, aName, bName, contexts, homeA, homeB, homeFlag string) (labelA, labelB, pathA, pathB string, err error) {
