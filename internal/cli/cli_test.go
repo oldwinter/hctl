@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,16 @@ func run(t *testing.T, args ...string) (string, error) {
 	cmd.SetArgs(args)
 	err := cmd.Execute()
 	return out.String(), err
+}
+
+func TestCompletionBash(t *testing.T) {
+	out, err := run(t, "completion", "bash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "harnessctl") {
+		t.Fatal(out[:min(len(out), 80)])
+	}
 }
 
 func TestVersion(t *testing.T) {
@@ -95,13 +106,63 @@ func TestDoctorAndDiffHomes(t *testing.T) {
 }
 
 func TestSSHContextErrorsWithoutHome(t *testing.T) {
+	t.Setenv("HARNESSCTL_SSH", "0")
 	cfg := testutil.Testdata(t, "harnessctl.yaml")
 	_, err := run(t, "--config", cfg, "--context", "box", "get", "harnesses")
 	if err == nil {
-		t.Fatal("expected ssh stub error")
+		t.Fatal("expected ssh error")
 	}
-	if !strings.Contains(err.Error(), "not implemented") {
+	if !strings.Contains(err.Error(), "ssh") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestSyncAndContextDiff(t *testing.T) {
+	a := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	b := testutil.CopyTree(t, testutil.Testdata(t, "home-b"))
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	bak := t.TempDir()
+	t.Setenv("HARNESSCTL_BACKUP_DIR", bak)
+	body := fmt.Sprintf(`apiVersion: harnessctl/v1
+kind: Config
+current-context: mba
+contexts:
+  - name: mba
+    context:
+      kind: local
+      home: %s
+  - name: box
+    context:
+      kind: local
+      home: %s
+`, a, b)
+	if err := os.WriteFile(cfgPath, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err := run(t, "--config", cfgPath, "diff", "harness", "codex", "--contexts", "mba,box")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "defaultModel") {
+		t.Fatal(out)
+	}
+	out, err = run(t, "--config", cfgPath, "sync", "--from", "mba", "--to", "box", "--harness", "codex", "--fields", "model", "--dry-run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "sk-test") {
+		t.Fatal(out)
+	}
+	if _, err := run(t, "--config", cfgPath, "sync", "--from", "mba", "--to", "box", "--harness", "codex", "--fields", "model"); err != nil {
+		t.Fatal(err)
+	}
+	out, err = run(t, "--config", cfgPath, "--context", "box", "describe", "harness", "codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "gpt-5.2-codex") {
+		t.Fatal(out)
 	}
 }
 

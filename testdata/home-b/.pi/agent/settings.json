@@ -1,0 +1,5 @@
+{
+  "model": "openai/gpt-4.1",
+  "provider": "openai",
+  "baseURL": "https://llm.box.example/v1"
+}

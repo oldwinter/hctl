@@ -106,7 +106,7 @@ func Apply(req Request) (model.ApplyReport, error) {
 
 func writesProvider(name string) bool {
 	switch name {
-	case "grok", "claude", "droid", "cursor-agent":
+	case "grok", "claude":
 		return false
 	default:
 		return true

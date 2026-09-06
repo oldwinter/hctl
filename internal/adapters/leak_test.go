@@ -17,7 +17,7 @@ func TestScanNeverLeaksFixtures(t *testing.T) {
 			t.Fatal(err)
 		}
 		var buf strings.Builder
-		if err := render.HarnessesTable(&buf, snaps); err != nil {
+		if err := render.HarnessesTable(&buf, snaps, false); err != nil {
 			t.Fatal(err)
 		}
 		if err := render.ModelsTable(&buf, snaps); err != nil {
@@ -56,9 +56,40 @@ func TestDoctorHomeAReady(t *testing.T) {
 	for _, c := range checks {
 		ready[c.Name] = c.Config == "ok" && c.Key == "ok" && c.Onboarding == "ok"
 	}
-	for _, name := range []string{"codex", "claude", "grok", "hermes", "opencode"} {
+	for _, name := range []string{"codex", "claude", "grok", "hermes", "opencode", "pi", "droid"} {
 		if !ready[name] {
 			t.Fatalf("%s not ready: %#v", name, checks)
+		}
+	}
+}
+
+func TestDoctorKeyDrift(t *testing.T) {
+	snaps, err := Scan(testutil.Testdata(t, "home-drift"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, c := range Doctor(snaps) {
+		if c.Name == "codex" || c.Name == "claude" {
+			if c.Drift != "key-drift" {
+				t.Fatalf("%s drift=%q msg=%q", c.Name, c.Drift, c.Message)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected key-drift")
+	}
+}
+
+func TestDoctorThemeOnboarding(t *testing.T) {
+	snaps, err := Scan(testutil.Testdata(t, "home-theme"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range Doctor(snaps) {
+		if c.Name == "claude" && c.Onboarding != "needed" {
+			t.Fatalf("%#v", c)
 		}
 	}
 }

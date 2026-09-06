@@ -10,6 +10,7 @@ import (
 	"github.com/oldwinter/harnessctl/internal/config"
 	"github.com/oldwinter/harnessctl/internal/desired"
 	"github.com/oldwinter/harnessctl/internal/exitcode"
+	"github.com/oldwinter/harnessctl/internal/fsx"
 	"github.com/oldwinter/harnessctl/internal/model"
 	"github.com/oldwinter/harnessctl/internal/render"
 )
@@ -49,15 +50,15 @@ func newDiffCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			labelA, labelB, pathA, pathB, err := resolveDiffSides(cfg, aName, bName, contexts, homeA, homeB, opts.home)
+			labelA, labelB, fsA, homeA2, fsB, homeB2, err := resolveDiffFS(opts, cfg, aName, bName, contexts, homeA, homeB)
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			sa, err := adapters.ReadOne(ad, pathA)
+			sa, err := adapters.ReadOneFS(ad, fsA, homeA2)
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			sb, err := adapters.ReadOne(ad, pathB)
+			sb, err := adapters.ReadOneFS(ad, fsB, homeB2)
 			if err != nil {
 				return writeErr(cmd, err)
 			}
@@ -70,7 +71,7 @@ func newDiffCmd(opts *options) *cobra.Command {
 					"diff":    diffs,
 				})
 			}
-			return render.Diff(cmd.OutOrStdout(), labelA+" ("+pathA+")", labelB+" ("+pathB+")", diffs)
+			return render.Diff(cmd.OutOrStdout(), labelA+" ("+homeA2+")", labelB+" ("+homeB2+")", diffs)
 		},
 	}
 	cmd.Flags().StringVar(&aName, "a", "", "context A")
@@ -104,6 +105,41 @@ func runDiffDesired(cmd *cobra.Command, opts *options, filename string) error {
 	}
 	rep := model.ApplyReport{DryRun: true, Changes: changes}
 	return render.ApplyReport(cmd.OutOrStdout(), rep)
+}
+
+func resolveDiffFS(opts *options, cfg *config.File, aName, bName, contexts, homeA, homeB string) (labelA, labelB string, fsA fsx.FS, pathA string, fsB fsx.FS, pathB string, err error) {
+	if contexts != "" {
+		parts := strings.Split(contexts, ",")
+		if len(parts) != 2 {
+			return "", "", nil, "", nil, "", fmt.Errorf("--contexts wants exactly two names, got %q", contexts)
+		}
+		aName, bName = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+	}
+	if homeA != "" || homeB != "" {
+		if homeA == "" || homeB == "" {
+			return "", "", nil, "", nil, "", fmt.Errorf("--home-a and --home-b must be used together")
+		}
+		la, lb := "a", "b"
+		if aName != "" {
+			la = aName
+		}
+		if bName != "" {
+			lb = bName
+		}
+		return la, lb, fsx.Local{}, homeA, fsx.Local{}, homeB, nil
+	}
+	if aName == "" || bName == "" {
+		return "", "", nil, "", nil, "", fmt.Errorf("need --a/--b, --contexts NAME,NAME, or --home-a/--home-b")
+	}
+	_, fsA, pathA, err = opts.openNamed(cfg, aName)
+	if err != nil {
+		return "", "", nil, "", nil, "", err
+	}
+	_, fsB, pathB, err = opts.openNamed(cfg, bName)
+	if err != nil {
+		return "", "", nil, "", nil, "", err
+	}
+	return aName, bName, fsA, pathA, fsB, pathB, nil
 }
 
 func resolveDiffSides(cfg *config.File, aName, bName, contexts, homeA, homeB, homeFlag string) (labelA, labelB, pathA, pathB string, err error) {

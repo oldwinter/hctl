@@ -37,9 +37,23 @@ type NamedContext struct {
 
 // Context is an environment / machine target (not a kube cluster).
 type Context struct {
-	Kind string `yaml:"kind" json:"kind"`                     // local | ssh
-	Home string `yaml:"home,omitempty" json:"home,omitempty"` // optional home override
-	SSH  string `yaml:"ssh,omitempty" json:"ssh,omitempty"`   // user@host for v0.2
+	Kind         string `yaml:"kind" json:"kind"`                     // local | ssh
+	Home         string `yaml:"home,omitempty" json:"home,omitempty"` // optional home override
+	SSH          string `yaml:"ssh,omitempty" json:"ssh,omitempty"`   // user@host
+	User         string `yaml:"user,omitempty" json:"user,omitempty"`
+	Host         string `yaml:"host,omitempty" json:"host,omitempty"`
+	IdentityFile string `yaml:"identityFile,omitempty" json:"identityFile,omitempty"`
+}
+
+// Target returns user@host for SSH contexts.
+func (c Context) Target() string {
+	if strings.TrimSpace(c.SSH) != "" {
+		return c.SSH
+	}
+	if c.User != "" && c.Host != "" {
+		return c.User + "@" + c.Host
+	}
+	return c.Host
 }
 
 // Default returns the built-in mba (local) context. box is documented, not seeded.
@@ -152,7 +166,10 @@ func (f *File) ResolveHome(name, homeFlag string) (NamedContext, string, error) 
 	if homeFlag != "" {
 		return nc, homeFlag, nil
 	}
-	if nc.Context.Kind == KindSSH {
+	if nc.Context.Kind == KindSSH && homeFlag == "" {
+		if nc.Context.Home != "" {
+			return nc, nc.Context.Home, nil
+		}
 		return nc, "", fmt.Errorf("context %q: %w", name, ErrSSHNotImplemented)
 	}
 	if nc.Context.Home != "" {

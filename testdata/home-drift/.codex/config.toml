@@ -1,0 +1,6 @@
+model = "gpt-5"
+model_provider = "custom"
+
+[model_providers.custom]
+base_url = "https://sub2api.example/v1"
+experimental_bearer_token = "sk-test-aaa"

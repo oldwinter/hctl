@@ -17,25 +17,21 @@ func newGetCmd(opts *options) *cobra.Command {
 		Args:      cobra.ExactArgs(1),
 		ValidArgs: []string{"harnesses", "harness", "models", "model"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := opts.loadConfig()
+			_, fsys, home, err := opts.openTarget()
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			_, home, err := opts.scanHome(cfg)
-			if err != nil {
-				return writeErr(cmd, err)
-			}
-			snaps, err := adapters.Scan(home)
+			snaps, err := adapters.ScanFS(fsys, home)
 			if err != nil {
 				return writeErr(cmd, err)
 			}
 			res := strings.ToLower(args[0])
 			switch res {
 			case "harnesses", "harness":
-				if opts.jsonOut {
+				if opts.jsonOut || opts.output == "json" {
 					return render.JSON(cmd.OutOrStdout(), snaps)
 				}
-				return render.HarnessesTable(cmd.OutOrStdout(), snaps)
+				return render.HarnessesTable(cmd.OutOrStdout(), snaps, opts.output == "wide")
 			case "models", "model":
 				if opts.jsonOut {
 					type row struct {

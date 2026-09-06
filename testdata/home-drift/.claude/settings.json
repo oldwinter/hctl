@@ -1,0 +1,7 @@
+{
+  "model": "claude-sonnet-4",
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://sub2api.example/v1",
+    "ANTHROPIC_AUTH_TOKEN": "sk-test-bbb"
+  }
+}

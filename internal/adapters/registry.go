@@ -6,10 +6,12 @@ import (
 
 	"github.com/oldwinter/harnessctl/internal/adapters/claude"
 	"github.com/oldwinter/harnessctl/internal/adapters/codex"
+	"github.com/oldwinter/harnessctl/internal/adapters/cursor"
+	"github.com/oldwinter/harnessctl/internal/adapters/droid"
 	"github.com/oldwinter/harnessctl/internal/adapters/grok"
 	"github.com/oldwinter/harnessctl/internal/adapters/hermes"
 	"github.com/oldwinter/harnessctl/internal/adapters/opencode"
-	"github.com/oldwinter/harnessctl/internal/adapters/stub"
+	"github.com/oldwinter/harnessctl/internal/adapters/pi"
 	"github.com/oldwinter/harnessctl/internal/fsx"
 	"github.com/oldwinter/harnessctl/internal/model"
 )
@@ -36,9 +38,9 @@ func All() []Adapter {
 		grok.Adapter{},
 		hermes.Adapter{},
 		opencode.Adapter{},
-		stub.New("pi", []string{"pi"}, []string{".pi/agent", ".pi"}),
-		stub.New("droid", []string{"droid"}, []string{".factory", ".droid"}),
-		stub.New("cursor-agent", []string{"cursor-agent", "cursor"}, []string{".cursor"}),
+		pi.Adapter{},
+		droid.Adapter{},
+		cursor.Adapter{},
 	}
 }
 

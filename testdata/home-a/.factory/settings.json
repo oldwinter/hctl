@@ -1,0 +1,6 @@
+{
+  "model": "gpt-5",
+  "provider": "factory",
+  "baseURL": "https://api.openai.com/v1",
+  "apiKey": "sk-test-aaa"
+}

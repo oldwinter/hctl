@@ -11,13 +11,14 @@ import (
 
 // Version is the CLI version string. Override via -ldflags.
 var (
-	Version = "0.3.0"
+	Version = "1.0.0"
 	Commit  = "unknown"
 	Date    = "unknown"
 )
 
 type options struct {
 	jsonOut     bool
+	output      string
 	home        string
 	configPath  string
 	contextName string
@@ -75,6 +76,7 @@ Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 		},
 	}
 	root.PersistentFlags().BoolVar(&opts.jsonOut, "json", false, "emit JSON instead of a table")
+	root.PersistentFlags().StringVarP(&opts.output, "output", "o", "", "output format: json|wide (wide adds config paths)")
 	root.PersistentFlags().StringVar(&opts.home, "home", "", "override user home used to locate harness configs (also HARNESSCTL_HOME)")
 	root.PersistentFlags().StringVar(&opts.configPath, "config", "", "path to harnessctl kubeconfig-like file (also HARNESSCTL_CONFIG)")
 	root.PersistentFlags().StringVar(&opts.contextName, "context", "", "context to use for this command (overrides current-context)")
@@ -87,6 +89,8 @@ Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 	root.AddCommand(newDiffCmd(opts))
 	root.AddCommand(newSetCmd(opts))
 	root.AddCommand(newApplyCmd(opts))
+	root.AddCommand(newSyncCmd(opts))
+	root.AddCommand(newCompletionCmd())
 	return root
 }
 

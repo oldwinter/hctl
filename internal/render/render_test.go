@@ -18,7 +18,7 @@ func TestHarnessesTableUsesFingerprintOnly(t *testing.T) {
 		SecretPresent:     true,
 	}
 	var buf strings.Builder
-	if err := HarnessesTable(&buf, []model.Snapshot{s}); err != nil {
+	if err := HarnessesTable(&buf, []model.Snapshot{s}, false); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()

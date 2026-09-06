@@ -1,16 +1,23 @@
 # harnessctl developer tasks
-# Usage: just build | just test | just fmt | just lint | just smoke
 
 binary := "bin/harnessctl"
 alias_bin := "bin/hctl"
+version := "1.0.0"
+commit := `git rev-parse --short HEAD 2>/dev/null || echo unknown`
+date := `date -u +%Y-%m-%dT%H:%M:%SZ`
+
+ldflags := "-X github.com/oldwinter/harnessctl/internal/cli.Version=" + version + " -X github.com/oldwinter/harnessctl/internal/cli.Commit=" + commit + " -X github.com/oldwinter/harnessctl/internal/cli.Date=" + date
 
 build:
 	mkdir -p bin
-	go build -ldflags="-X github.com/oldwinter/harnessctl/internal/cli.Version=0.1.0" -o {{binary}} ./cmd/harnessctl
+	go build -ldflags="{{ldflags}}" -o {{binary}} ./cmd/harnessctl
 	ln -sfn harnessctl {{alias_bin}}
 
 test:
 	go test ./...
+
+race:
+	go test -race ./internal/mutate ./internal/fsx ./internal/cli ./internal/edit
 
 fmt:
 	go fmt ./...
@@ -29,6 +36,7 @@ smoke: build
 	{{binary}} version
 	{{alias_bin}} version
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml get harnesses
+	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml -o wide get harnesses
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml --json get models
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml describe harness codex
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml doctor
@@ -37,3 +45,4 @@ smoke: build
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml set model codex o4-mini --dry-run
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml diff -f testdata/desired.toml
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml apply -f testdata/desired.toml --dry-run
+	{{binary}} completion bash >/dev/null

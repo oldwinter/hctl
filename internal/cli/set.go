@@ -4,10 +4,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/harnessctl/internal/adapters"
+	"github.com/oldwinter/harnessctl/internal/config"
 	"github.com/oldwinter/harnessctl/internal/exitcode"
 	"github.com/oldwinter/harnessctl/internal/fsx"
 	"github.com/oldwinter/harnessctl/internal/model"
 	"github.com/oldwinter/harnessctl/internal/mutate"
+	"github.com/oldwinter/harnessctl/internal/remote"
 	"github.com/oldwinter/harnessctl/internal/render"
 )
 
@@ -74,9 +76,17 @@ func (o *options) openTarget() (contextName string, fsys fsx.FS, home string, er
 	if err != nil {
 		return "", nil, "", err
 	}
-	name, home, err := o.scanHome(cfg)
+	return o.openNamed(cfg, o.activeContextName(cfg))
+}
+
+func (o *options) openNamed(cfg *config.File, name string) (string, fsx.FS, string, error) {
+	nc, err := cfg.Get(name)
 	if err != nil {
 		return "", nil, "", err
 	}
-	return name, fsx.Local{}, home, nil
+	fsys, home, err := remote.Dial(nc, o.home)
+	if err != nil {
+		return "", nil, "", err
+	}
+	return name, fsys, home, nil
 }

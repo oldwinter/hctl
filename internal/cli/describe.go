@@ -19,11 +19,7 @@ func newDescribeCmd(opts *options) *cobra.Command {
 			if !isHarnessResource(args[0]) {
 				return writeErr(cmd, fmt.Errorf("unknown resource %q (want harness)", args[0]))
 			}
-			cfg, err := opts.loadConfig()
-			if err != nil {
-				return writeErr(cmd, err)
-			}
-			ctxName, home, err := opts.scanHome(cfg)
+			ctxName, fsys, home, err := opts.openTarget()
 			if err != nil {
 				return writeErr(cmd, err)
 			}
@@ -31,7 +27,7 @@ func newDescribeCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			snap, err := adapters.ReadOne(a, home)
+			snap, err := adapters.ReadOneFS(a, fsys, home)
 			if err != nil {
 				return writeErr(cmd, err)
 			}

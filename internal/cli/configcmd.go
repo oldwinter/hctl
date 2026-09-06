@@ -45,6 +45,52 @@ func newConfigCmd(opts *options) *cobra.Command {
 			return nil
 		},
 	})
+	setCtx := &cobra.Command{
+		Use:   "set-context NAME",
+		Short: "Create or update a context (local or ssh)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			kind, _ := cmd.Flags().GetString("kind")
+			home, _ := cmd.Flags().GetString("home")
+			ssh, _ := cmd.Flags().GetString("ssh")
+			ident, _ := cmd.Flags().GetString("identity")
+			cfg, err := opts.loadConfig()
+			if err != nil {
+				return err
+			}
+			nc := config.NamedContext{Name: args[0], Context: config.Context{
+				Kind: kind, Home: home, SSH: ssh, IdentityFile: ident,
+			}}
+			if nc.Context.Kind == "" {
+				if ssh != "" {
+					nc.Context.Kind = config.KindSSH
+				} else {
+					nc.Context.Kind = config.KindLocal
+				}
+			}
+			found := false
+			for i := range cfg.Contexts {
+				if cfg.Contexts[i].Name == args[0] {
+					cfg.Contexts[i] = nc
+					found = true
+					break
+				}
+			}
+			if !found {
+				cfg.Contexts = append(cfg.Contexts, nc)
+			}
+			if err := config.Save(opts.configPath, cfg); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Context %q saved.\n", args[0])
+			return nil
+		},
+	}
+	setCtx.Flags().String("kind", "", "local or ssh")
+	setCtx.Flags().String("home", "", "home directory on the target")
+	setCtx.Flags().String("ssh", "", "user@host")
+	setCtx.Flags().String("identity", "", "SSH IdentityFile")
+	cmd.AddCommand(setCtx)
 	cmd.AddCommand(&cobra.Command{
 		Use:   "use-context NAME",
 		Short: "Set the current context (writes the harnessctl config file)",

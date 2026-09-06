@@ -12,7 +12,14 @@ func newVersionCmd() *cobra.Command {
 		Short: "Print harnessctl version",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(cmd.OutOrStdout(), "harnessctl version %s\n", Version)
+			fmt.Fprintf(cmd.OutOrStdout(), "harnessctl version %s", Version)
+			if Commit != "" && Commit != "unknown" {
+				fmt.Fprintf(cmd.OutOrStdout(), " (%s)", Commit)
+			}
+			if Date != "" && Date != "unknown" {
+				fmt.Fprintf(cmd.OutOrStdout(), " %s", Date)
+			}
+			fmt.Fprintln(cmd.OutOrStdout())
 		},
 	}
 }

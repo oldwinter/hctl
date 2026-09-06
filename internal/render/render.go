@@ -23,10 +23,20 @@ func JSON(w io.Writer, v any) error {
 }
 
 // HarnessesTable prints the inventory table.
-func HarnessesTable(w io.Writer, snaps []model.Snapshot) error {
+func HarnessesTable(w io.Writer, snaps []model.Snapshot, wide bool) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tINSTALLED\tVERSION\tPROVIDER\tMODEL\tHOST\tSECRET")
+	if wide {
+		fmt.Fprintln(tw, "NAME\tINSTALLED\tVERSION\tPROVIDER\tMODEL\tHOST\tSECRET\tCONFIG")
+	} else {
+		fmt.Fprintln(tw, "NAME\tINSTALLED\tVERSION\tPROVIDER\tMODEL\tHOST\tSECRET")
+	}
 	for _, s := range snaps {
+		if wide {
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				s.Name, yesNo(s.Installed), dash(s.Version), dash(s.Provider),
+				dash(s.DefaultModel), dash(s.BaseURLHost), secretCell(s), strings.Join(s.ConfigPaths, ","))
+			continue
+		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			s.Name,
 			yesNo(s.Installed),

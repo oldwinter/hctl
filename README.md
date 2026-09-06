@@ -1,64 +1,56 @@
 # harnessctl
 
-kubectl 风格的 AI 编程 agent **harness 控制面**：盘点、对比、诊断 Codex / Claude Code / Grok Build / Hermes / OpenCode（以及 pi / droid / cursor-agent 的占位）在多台机器上的 **配置、默认模型和供应商**。
+kubectl 风格的 AI 编程 agent **harness 控制面**（1.0）：在多台机器上 **读取、对比、安全改写、同步** Codex / Claude Code / Grok Build / Hermes / OpenCode / pi / droid / cursor-agent 的配置、默认模型和供应商。
 
-v0.1 只做只读库存 + diff + doctor，可安装、可对 fixture / `--home` 跑通。
-
-English summary: a kubectl-style, read-only inventory for coding-agent harness configs across environments. It does not dispatch agents and never prints raw API keys.
-
-## 为什么单独成仓
-
-这不是 `all-cli`，也不是 `herdr-orchestrator`。
-
-| 项目 | 职责 |
-| --- | --- |
-| **harnessctl** | harness **配置** 的控制面（get / describe / diff / doctor） |
-| herdr-orchestrator | **调度** agent 跑任务 |
-| all-cli | 日常 CLI 工具箱，不要把 harness 配置逻辑混进去 |
+**不是调度器。** 不启动 agent，不替代 `all-cli`，不依赖 Herdr runtime。
 
 ## kubectl 对照
 
 | kubectl | harnessctl |
 | --- | --- |
-| Context = kube 集群 | **Context = 环境 / 机器**（如本机 Mac `mba`、远程 Linux `box`） |
-| Resource = pod / deploy | **Resource = `harness` / `model`**（后续 `provider`、`secret` 仅作引用） |
-| `kubectl get` / `describe` / `diff` / `config` / `doctor` | 同名语感的子命令 |
-
-v0.1 只在 **local** context 上读盘。`kind: ssh` 的 context 可以写进配置文件，执行时会给出明确的 “not implemented yet”（v0.2）。
+| Context = 集群 | **Context = 环境 / 机器**（本机 `mba`、SSH `box`） |
+| Resource | `harness` / `model` |
+| get / describe / diff / apply / config | 同名语感命令 + `set` / `sync` / `doctor` |
 
 ## 安装
 
 模块路径：`github.com/oldwinter/harnessctl`。
 
-当前仓库若还在 Origin 临时项目上，请把 `go.mod` 的 module 视为目标路径；创建 GitHub / Origin 正式仓库后按该路径 `go install`。
+若仓库还在 Origin 上，创建 GitHub 远程后再 `go install`：
 
 ```bash
-# 源码构建（同时得到别名 hctl）
+go install github.com/oldwinter/harnessctl/cmd/harnessctl@v1.0.0
+go install github.com/oldwinter/harnessctl/cmd/hctl@v1.0.0
+
+# 或从源码
+just build          # bin/harnessctl + bin/hctl
 go build -o harnessctl ./cmd/harnessctl
 go build -o hctl ./cmd/hctl
-
-# 或
-just build   # 产出 bin/harnessctl 与 bin/hctl
-
-# 安装到 GOPATH/bin
-go install github.com/oldwinter/harnessctl/cmd/harnessctl@latest
-go install github.com/oldwinter/harnessctl/cmd/hctl@latest
 ```
 
-不依赖 Herdr runtime，也不需要真实用户 harness 配置：用 `--home` 或 `HARNESSCTL_HOME` 指向任意 home 树即可。
+Homebrew tap 不在 1.0 范围；需要时再加 `brew tap oldwinter/tap`。
+
+## 快速开始
 
 ```bash
-go test ./...
-go build -o harnessctl ./cmd/harnessctl
-./harnessctl version
-./harnessctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses
+harnessctl version
+harnessctl config get-contexts
+harnessctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses
+harnessctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses -o wide
+harnessctl --home testdata/home-a --config testdata/harnessctl.yaml --json get models
 ```
 
-## 配置文件（类 kubeconfig）
+环境变量：`HARNESSCTL_HOME`、`HARNESSCTL_CONFIG`、`HARNESSCTL_BACKUP_DIR`、`HARNESSCTL_SSH=0`（测试时禁止真 SSH）。
 
-默认路径：`~/.harnessctl/config.yaml`（可用 `--config` / `HARNESSCTL_CONFIG` 覆盖）。
+## 配置 mba / box
 
-文件不存在时，内置默认 **current-context = `mba`（local）**。`config use-context` 会把文件写出来。
+默认文件：`~/.harnessctl/config.yaml`。
+
+```bash
+harnessctl config set-context mba --kind local
+harnessctl config set-context box --kind ssh --ssh you@box.example --home /home/you --identity ~/.ssh/id_ed25519
+harnessctl config use-context mba
+```
 
 ```yaml
 apiVersion: harnessctl/v1
@@ -68,81 +60,109 @@ contexts:
   - name: mba
     context:
       kind: local
-      # home: /Users/you          # 可选，覆盖扫描用的 $HOME
-  # 如何加入远程 Linux box（v0.1 仅记录，不 SSH）：
   - name: box
     context:
       kind: ssh
-      ssh: user@box.example
-      home: /home/user
+      ssh: you@box.example
+      home: /home/you
+      identityFile: /Users/you/.ssh/id_ed25519
 ```
 
-`kind: ssh` 在 v0.1 执行任何读盘命令都会报错，并提示用 `--home` 或 `--home-a` / `--home-b` 对比两棵目录。跨机器 diff 是 v0.2。
+SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`。远程读写用 `cat` / `mv`，备份仍落在**本机** `~/.harnessctl/backups/`。
 
-## 命令示例
+## 命令矩阵
+
+| 命令 | 作用 | 退出码 |
+| --- | --- | --- |
+| `version` | 版本 / commit / date | 0 |
+| `config get-contexts` / `current-context` / `use-context` / `set-context` | 环境 | 0 / 1 |
+| `get harnesses` / `get models` | 库存表；`--json` / `-o wide` | 0 |
+| `describe harness NAME` | 单条快照 | 0 |
+| `doctor` | 安装 / 配置 / 密钥 / onboarding / **key-drift** | 0；解析错误为 5 |
+| `diff harness NAME --contexts mba,box` | 两边快照 | 0 / 4(ssh) |
+| `diff harness NAME --home-a A --home-b B` | 两棵 home | 0 |
+| `diff -f desired.toml` | 期望 vs 当前 | 0 |
+| `set model\|provider NAME VALUE [--dry-run]` | 单字段写入 | 0 / 3(verify) / 2 |
+| `apply -f FILE [--dry-run]` | 声明式写入 | 0 / 3 |
+| `sync --from mba --to box --harness a,b [--fields …] [--dry-run]` | 跨 context | 0 / 4 |
+| `completion bash\|zsh\|fish` | 补全 | 0 |
+
+退出码：`0` 成功，`1` 通用，`2` 用法，`3` 写后校验失败，`4` SSH，`5` 解析错误。
+
+## set / apply / sync
 
 ```bash
-harnessctl version
-harnessctl config get-contexts
-harnessctl config current-context
-harnessctl config use-context mba
+# 先看再写
+harnessctl --home testdata/home-a set model codex o4-mini --dry-run
+harnessctl --home testdata/home-a set model codex o4-mini
 
-# 指向 fixture，无需本机真实 ~/.codex 等
-harnessctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses
-harnessctl --home testdata/home-a --config testdata/harnessctl.yaml --json get harnesses
-harnessctl --home testdata/home-a --config testdata/harnessctl.yaml get models
-harnessctl --home testdata/home-a --config testdata/harnessctl.yaml describe harness codex
-harnessctl --home testdata/home-a --config testdata/harnessctl.yaml doctor
+harnessctl --home testdata/home-a apply -f testdata/desired.toml --dry-run
+harnessctl --home testdata/home-a apply -f testdata/desired.toml
 
-# 对比两个 home / fixture（跨机器 SSH diff = v0.2）
-harnessctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b
-harnessctl diff harness codex --a mba --b box --home-a testdata/home-a --home-b testdata/home-b
-# 两边都是 local 时也可以：
-# harnessctl diff harness codex --contexts mba,other-local
+# 跨环境（两边都配置好之后）
+harnessctl sync --from mba --to box --harness codex,claude --dry-run
+harnessctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
 ```
 
-环境变量：`HARNESSCTL_HOME`、`HARNESSCTL_CONFIG`。报告类命令支持 `--json`。
+`--fields secret` 会把 bearer **字节**拷到对端（SSH 管道，不写日志），屏幕上只出现指纹。能用 `secret-ref`（环境变量名）就不要拷密钥。
 
-## 读到的 harness 格式（v0.1）
+### dry-run sync 示例（已脱敏）
 
-| 名称 | 配置 | 抽取字段 |
-| --- | --- | --- |
-| `codex` | `~/.codex/config.toml` | `model`, `model_provider`, `[model_providers.*].base_url`, bearer / `env_key` |
-| `claude` | `~/.claude/settings.json` | `model`, `env.ANTHROPIC_*`（含角色 alias） |
-| `grok` | `~/.grok/config.toml` | `[models].default`, `[model."…"].base_url` / `api_key` |
-| `hermes` | `~/.hermes/config.yaml` + `.env` | `model.default` / `providers.*.base_url` / `key_env` |
-| `opencode` | `~/.config/opencode/opencode.jsonc` | `model`（`provider/model`）、`provider.*.options` 或 `providers.*.settings` |
-| `pi` / `droid` / `cursor-agent` | 常见路径探测 | 仅占位，完整 parser 后续再加 |
+```
+dry-run: no files written
+HARNESS  FIELD  FROM           TO              PATH
+codex    model  o4-mini        gpt-5.2-codex   -
+secret codex action=bearer from=sha256:b6310a05
+```
 
-统一快照：名称、可执行文件路径/版本（PATH 上能检测到才有）、配置路径、供应商、**base URL 的 host**（不要完整密钥）、默认模型、effort / alias、密钥指纹。
+写入是「备份 → 临时文件 → rename → 再读校验」。备份：`~/.harnessctl/backups/<harness>-<timestamp>.bak`。
 
 ## 安全
 
 - **永远不打印明文 API key / token。**
-- 若配置里有内联密钥，只保留 `sha256(key)` 的前 8 位十六进制，表格里显示为 `sha256:deadbeef`。
-- 若只写了环境变量名或 `{env:NAME}`，显示 `env:NAME`。
-- host 字段去掉 userinfo 和 path，避免 `https://user:token@host/v1` 泄漏。
-- 渲染层还有一层 `sk-…` / 长 hex 的 redact 兜底。
-- `testdata/` 只用假密钥：`sk-test-aaa` / `sk-test-bbb`。
+- 内联密钥只保留 `sha256` 前 8 位，表格为 `sha256:deadbeef`。
+- host 去掉 userinfo / path。
+- 渲染层再滤一层 `sk-…` / 长 hex。
+- `testdata/` 只有 `sk-test-aaa` / `sk-test-bbb`。
+
+## 格式保留（写入时）
+
+| 格式 | 行为 |
+| --- | --- |
+| TOML | 按行改 key，**保留注释和无关表**；新 key 追加 |
+| YAML | yaml.v3 node，尽量保留未改 key 的注释 |
+| JSON | 2 空格重排，**键顺序可能变** |
+| JSONC | **注释和尾逗号会丢**，写出标准 JSON |
+
+## 适配器
+
+| 名称 | 路径 |
+| --- | --- |
+| codex | `~/.codex/config.toml` |
+| claude | `~/.claude/settings.json` |
+| grok | `~/.grok/config.toml` |
+| hermes | `~/.hermes/config.yaml` + `.env` |
+| opencode | `~/.config/opencode/opencode.jsonc` |
+| pi | `~/.pi/agent/settings.json` + `auth.json` |
+| droid | `~/.factory/settings.json` |
+| cursor-agent | `~/.cursor/cli-config.json`（`cursor-agent status` 短超时探测登录） |
+
+`--json` 字段见 [`docs/json-schemas.md`](docs/json-schemas.md)。
 
 ## 开发
 
 ```bash
 just test
-just fmt
-just lint    # 有 golangci-lint 则用；否则 go vet
+just race
+just lint
 just smoke
-just build
 ```
 
-包布局：`cmd/`、`internal/cli`、`internal/config`、`internal/model`、`internal/adapters/<harness>`、`internal/render`、`testdata/`。
+## 非目标
 
-## 路线图 v0.2
-
-- `set` / `apply` / `sync`：写回各 harness 的真实配置（仍不打印密钥）。
-- SSH context：对 `box` 做远程读（以及真正的跨机器 `diff`）。
-- `provider` / `secret` 资源（secret 仅引用与指纹）。
-- pi / droid / cursor-agent 的完整只读适配器。
+- 不调度 agent（herdr-orchestrator）
+- 不替换 all-cli
+- 1.0 不做 brew tap / GUI
 
 ## License
 

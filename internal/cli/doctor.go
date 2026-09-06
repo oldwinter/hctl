@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/harnessctl/internal/adapters"
+	"github.com/oldwinter/harnessctl/internal/exitcode"
 	"github.com/oldwinter/harnessctl/internal/render"
 )
 
@@ -13,15 +14,11 @@ func newDoctorCmd(opts *options) *cobra.Command {
 		Short: "Check install, config, key, and onboarding status",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := opts.loadConfig()
+			_, fsys, home, err := opts.openTarget()
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			_, home, err := opts.scanHome(cfg)
-			if err != nil {
-				return writeErr(cmd, err)
-			}
-			snaps, err := adapters.Scan(home)
+			snaps, err := adapters.ScanFS(fsys, home)
 			if err != nil {
 				return writeErr(cmd, err)
 			}
@@ -35,16 +32,10 @@ func newDoctorCmd(opts *options) *cobra.Command {
 			}
 			for _, c := range checks {
 				if c.Config == "error" {
-					return writeErr(cmd, errDoctor)
+					return exitcode.Errorf(exitcode.Parse, "doctor found parse errors")
 				}
 			}
 			return nil
 		},
 	}
 }
-
-var errDoctor = errString("doctor found parse errors")
-
-type errString string
-
-func (e errString) Error() string { return string(e) }
