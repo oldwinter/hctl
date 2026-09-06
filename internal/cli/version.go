@@ -11,21 +11,20 @@ import (
 func newVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
-		Short: "Print hctl version",
-		Args:  cobra.NoArgs,
+		Short: "Print hctl version, commit, and build date",
+		Long: `Print version metadata.
+
+just build / just release inject Version, Commit, and Date via -ldflags
+(see justfile). Plain go build / go install leaves commit and date as "unknown".`,
+		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			name := "hctl"
 			if filepath.Base(os.Args[0]) == "harnessctl" {
 				name = "harnessctl"
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s version %s", name, Version)
-			if Commit != "" && Commit != "unknown" {
-				fmt.Fprintf(cmd.OutOrStdout(), " (%s)", Commit)
-			}
-			if Date != "" && Date != "unknown" {
-				fmt.Fprintf(cmd.OutOrStdout(), " %s", Date)
-			}
-			fmt.Fprintln(cmd.OutOrStdout())
+			fmt.Fprintf(cmd.OutOrStdout(), "%s version %s\n", name, Version)
+			fmt.Fprintf(cmd.OutOrStdout(), "commit: %s\n", Commit)
+			fmt.Fprintf(cmd.OutOrStdout(), "built:  %s\n", Date)
 		},
 	}
 }

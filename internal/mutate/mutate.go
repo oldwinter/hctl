@@ -62,6 +62,13 @@ func Apply(req Request) (model.ApplyReport, error) {
 		return rep, exitcode.Errorf(exitcode.Usage, "harness %s does not support writes", req.Adapter.Name())
 	}
 	if req.DryRun {
+		path := ""
+		if len(before.ConfigPaths) > 0 {
+			path = before.ConfigPaths[0]
+		}
+		for i := range rep.Changes {
+			rep.Changes[i].Path = path
+		}
 		return rep, nil
 	}
 	if req.BackupDir == "" {

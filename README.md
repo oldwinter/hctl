@@ -16,26 +16,28 @@ kubectl 风格的 AI 编程 agent **harness 控制面**（1.0.1）：在多台�
 
 ## 安装
 
-模块路径：`github.com/oldwinter/hctl`。空仓库已创建：https://github.com/oldwinter/hctl （尚未推送代码；不要推到 Rust 项目 `oldwinter/harnessctl`）。
-
-把本仓库的 `main` 和标签推上去之后：
+仓库：https://github.com/oldwinter/hctl （模块 `github.com/oldwinter/hctl`）。**不要**推到 / 安装自 Rust 项目 `oldwinter/harnessctl`。
 
 ```bash
-git remote add github git@github.com:oldwinter/hctl.git
-git push github main
-git push github v1.0.1
-
+# 主二进制
 go install github.com/oldwinter/hctl/cmd/hctl@v1.0.1
+# 或跟踪 main
+go install github.com/oldwinter/hctl/cmd/hctl@latest
+
+# 次级入口（同功能）
 go install github.com/oldwinter/hctl/cmd/harnessctl@v1.0.1
 ```
 
-在 GitHub 推送完成前，从当前 Origin 远程克隆后本地编译：
+`go install` 不会注入 git commit / build date；`hctl version` 会显示 `commit: unknown` / `built: unknown`。要带元数据，从源码用 just（见下）。
+
+从源码编译：
 
 ```bash
-git clone <origin-url>
+git clone https://github.com/oldwinter/hctl.git
 cd hctl
-just build          # bin/hctl + bin/harnessctl
+just build          # bin/hctl + bin/harnessctl，ldflags 注入 version/commit/date
 just release        # dist/hctl_linux_amd64 + dist/harnessctl_linux_amd64 + SHA256SUMS
+./bin/hctl version  # 例如：hctl version 1.0.1 / commit: abc1234 / built: 2026-...
 ```
 
 发布产物（`just release`）：
@@ -63,7 +65,7 @@ hctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses -o w
 hctl --home testdata/home-a --config testdata/harnessctl.yaml --json get models
 ```
 
-环境变量：`HARNESSCTL_HOME`、`HARNESSCTL_CONFIG`、`HARNESSCTL_BACKUP_DIR`、`HARNESSCTL_SSH=0`（测试时禁止真 SSH）。
+环境变量（兼容旧名）：`HARNESSCTL_HOME`、`HARNESSCTL_CONFIG`、`HARNESSCTL_BACKUP_DIR`、`HARNESSCTL_SSH=0`（测试时禁止真 SSH）。配置目录默认仍是 `~/.harnessctl`。
 
 ## 配置 mba / box
 
@@ -181,6 +183,8 @@ just lint
 just smoke
 just release
 ```
+
+`just build` / `just release` 通过 `-ldflags` 写入 `internal/cli.Version` / `Commit` / `Date`（见 `justfile`）。裸 `go build` / `go install` 时 commit 与 date 为 `unknown`。
 
 ## 非目标
 

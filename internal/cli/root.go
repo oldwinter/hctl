@@ -78,8 +78,8 @@ Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 	}
 	root.PersistentFlags().BoolVar(&opts.jsonOut, "json", false, "emit JSON instead of a table")
 	root.PersistentFlags().StringVarP(&opts.output, "output", "o", "", "output format: json|wide (wide adds config paths)")
-	root.PersistentFlags().StringVar(&opts.home, "home", "", "override user home used to locate harness configs (also HARNESSCTL_HOME)")
-	root.PersistentFlags().StringVar(&opts.configPath, "config", "", "path to harnessctl kubeconfig-like file (also HARNESSCTL_CONFIG)")
+	root.PersistentFlags().StringVar(&opts.home, "home", "", "override user home used to locate harness configs (also HARNESSCTL_HOME for compatibility)")
+	root.PersistentFlags().StringVar(&opts.configPath, "config", "", "path to hctl kubeconfig-like file (default ~/.harnessctl/config.yaml; also HARNESSCTL_CONFIG for compatibility)")
 	root.PersistentFlags().StringVar(&opts.contextName, "context", "", "context to use for this command (overrides current-context)")
 
 	root.AddCommand(newVersionCmd())

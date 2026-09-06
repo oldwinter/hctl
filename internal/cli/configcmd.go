@@ -12,7 +12,7 @@ import (
 func newConfigCmd(opts *options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
-		Short: "View and switch harnessctl contexts (environments)",
+		Short: "View and switch hctl contexts (environments)",
 	}
 	cmd.AddCommand(&cobra.Command{
 		Use:   "get-contexts",
@@ -93,7 +93,7 @@ func newConfigCmd(opts *options) *cobra.Command {
 	cmd.AddCommand(setCtx)
 	cmd.AddCommand(&cobra.Command{
 		Use:   "use-context NAME",
-		Short: "Set the current context (writes the harnessctl config file)",
+		Short: "Set the current context (writes the hctl config file under ~/.harnessctl)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := opts.loadConfig()

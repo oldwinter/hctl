@@ -1,20 +1,38 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/hctl/internal/adapters"
+	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/render"
 )
 
+const getResources = "harnesses|harness|models|model"
+
 func newGetCmd(opts *options) *cobra.Command {
 	return &cobra.Command{
-		Use:       "get RESOURCE",
-		Short:     "List harnesses or default models",
-		Args:      cobra.ExactArgs(1),
+		Use:   "get RESOURCE",
+		Short: "List harnesses or default models",
+		Long: `List harness inventory or default models.
+
+Valid resources: harnesses (alias harness), models (alias model).
+
+Examples:
+  hctl get harnesses
+  hctl get models
+  hctl get harnesses -o wide`,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return exitcode.Errorf(exitcode.Usage, "missing resource; want %s", getResources)
+			}
+			if len(args) > 1 {
+				return exitcode.Errorf(exitcode.Usage, "too many args; want %s get RESOURCE", cmd.Root().Name())
+			}
+			return nil
+		},
 		ValidArgs: []string{"harnesses", "harness", "models", "model"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, fsys, home, err := opts.openTarget()
@@ -55,7 +73,7 @@ func newGetCmd(opts *options) *cobra.Command {
 				}
 				return render.ModelsTable(cmd.OutOrStdout(), snaps)
 			default:
-				return writeErr(cmd, fmt.Errorf("unknown resource %q (want harnesses|models)", args[0]))
+				return writeErr(cmd, exitcode.Errorf(exitcode.Usage, "unknown resource %q (want %s)", args[0], getResources))
 			}
 		},
 	}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/testutil"
 )
 
@@ -39,6 +40,34 @@ func TestVersion(t *testing.T) {
 	}
 	if !strings.Contains(out, "hctl version "+Version) && !strings.Contains(out, "harnessctl version "+Version) {
 		t.Fatal(out)
+	}
+	if !strings.Contains(out, "commit:") || !strings.Contains(out, "built:") {
+		t.Fatal(out)
+	}
+}
+
+func TestGetMissingResource(t *testing.T) {
+	_, err := run(t, "get")
+	if err == nil {
+		t.Fatal("expected usage error")
+	}
+	if !strings.Contains(err.Error(), "harnesses") || !strings.Contains(err.Error(), "models") {
+		t.Fatalf("err = %v", err)
+	}
+	if exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("exit = %d want %d (%v)", exitcode.From(err), exitcode.Usage, err)
+	}
+}
+
+func TestGetUnknownResource(t *testing.T) {
+	home := testutil.Testdata(t, "home-a")
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	_, err := run(t, "--home", home, "--config", cfg, "get", "pods")
+	if err == nil {
+		t.Fatal("expected usage error")
+	}
+	if exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("exit = %d want %d (%v)", exitcode.From(err), exitcode.Usage, err)
 	}
 }
 
@@ -251,6 +280,9 @@ func TestSetModelRoundTrip(t *testing.T) {
 	}
 	if !strings.Contains(out, "dry-run") || !strings.Contains(out, "o4-mini") {
 		t.Fatal(out)
+	}
+	if !strings.Contains(out, filepath.Join(home, ".codex", "config.toml")) {
+		t.Fatalf("dry-run PATH missing config path: %s", out)
 	}
 	if strings.Contains(out, "sk-test") {
 		t.Fatal("leaked")
