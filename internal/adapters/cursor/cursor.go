@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oldwinter/harnessctl/internal/edit"
-	"github.com/oldwinter/harnessctl/internal/fsx"
-	"github.com/oldwinter/harnessctl/internal/model"
+	"github.com/oldwinter/hctl/internal/edit"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
 )
 
 // Adapter reads ~/.cursor/cli-config.json and optionally probes cursor-agent status.
@@ -49,10 +49,12 @@ func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
 	}
 	snap.DefaultModel = cfg.Model
 	snap.Provider = cfg.Provider
-	if logged, note := probeLogin(); note != "" {
-		snap.Notes = append(snap.Notes, note)
-		if !logged {
-			snap.Notes = append(snap.Notes, "cursor-agent login not detected")
+	if _, local := fsys.(fsx.Local); local {
+		if logged, note := probeLogin(); note != "" {
+			snap.Notes = append(snap.Notes, note)
+			if !logged {
+				snap.Notes = append(snap.Notes, "cursor-agent login not detected")
+			}
 		}
 	}
 	return snap, nil

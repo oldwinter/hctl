@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -36,6 +37,11 @@ func (Local) MkdirAll(name string, perm os.FileMode) error {
 func (Local) Rename(oldpath, newpath string) error { return os.Rename(oldpath, newpath) }
 func (Local) Remove(name string) error             { return os.Remove(name) }
 func (Local) Join(elem ...string) string           { return filepath.Join(elem...) }
+
+// LookPath resolves a binary on the local PATH.
+func (Local) LookPath(name string) (string, error) {
+	return exec.LookPath(name)
+}
 
 func IsNotExist(err error) bool {
 	return errors.Is(err, os.ErrNotExist) || errors.Is(err, fs.ErrNotExist)

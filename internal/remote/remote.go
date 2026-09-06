@@ -4,9 +4,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/oldwinter/harnessctl/internal/config"
-	"github.com/oldwinter/harnessctl/internal/exitcode"
-	"github.com/oldwinter/harnessctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/config"
+	"github.com/oldwinter/hctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/fsx"
 )
 
 // Dial opens a filesystem for a context. Tests may replace this.

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/oldwinter/harnessctl/internal/config"
-	"github.com/oldwinter/harnessctl/internal/model"
-	"github.com/oldwinter/harnessctl/internal/secret"
+	"github.com/oldwinter/hctl/internal/config"
+	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/secret"
 )
 
 // JSON writes indented JSON. A final redact pass refuses to emit raw keys.

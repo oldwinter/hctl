@@ -7,9 +7,9 @@
 | field | type | notes |
 | --- | --- | --- |
 | name | string | official harness id |
-| installed | bool | binary on **local** PATH |
+| installed | bool | binary on PATH (local) or remote `command -v` (SSH) |
 | installedPath | string | |
-| version | string | cheap `--version` probe |
+| version | string | cheap `--version` probe (local only; skipped over SSH) |
 | configPaths | string[] | |
 | configFound | bool | |
 | provider | string | |

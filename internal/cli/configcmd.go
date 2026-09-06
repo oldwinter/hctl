@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oldwinter/harnessctl/internal/config"
-	"github.com/oldwinter/harnessctl/internal/render"
+	"github.com/oldwinter/hctl/internal/config"
+	"github.com/oldwinter/hctl/internal/render"
 )
 
 func newConfigCmd(opts *options) *cobra.Command {

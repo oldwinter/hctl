@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oldwinter/harnessctl/internal/adapters"
-	"github.com/oldwinter/harnessctl/internal/render"
+	"github.com/oldwinter/hctl/internal/adapters"
+	"github.com/oldwinter/hctl/internal/render"
 )
 
 func newDescribeCmd(opts *options) *cobra.Command {

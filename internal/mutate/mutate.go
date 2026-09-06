@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/oldwinter/harnessctl/internal/adapters"
-	"github.com/oldwinter/harnessctl/internal/exitcode"
-	"github.com/oldwinter/harnessctl/internal/fsx"
-	"github.com/oldwinter/harnessctl/internal/model"
+	"github.com/oldwinter/hctl/internal/adapters"
+	"github.com/oldwinter/hctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
 )
 
 // FieldWriter can mutate harness config fields.
@@ -51,6 +51,11 @@ func Apply(req Request) (model.ApplyReport, error) {
 	}
 	if req.Desired.SecretRef != "" && req.Desired.SecretRef != before.SecretRef {
 		rep.Changes = append(rep.Changes, model.Change{Harness: before.Name, Field: "secretRef", From: before.SecretRef, To: req.Desired.SecretRef})
+	}
+	if req.Desired.Provider != "" {
+		if err := rejectUnsupportedProvider(req.Adapter.Name()); err != nil {
+			return rep, err
+		}
 	}
 	w, ok := req.Adapter.(FieldWriter)
 	if !ok {
@@ -94,7 +99,7 @@ func Apply(req Request) (model.ApplyReport, error) {
 	if req.Desired.Model != "" && after.DefaultModel != req.Desired.Model {
 		return rep, exitcode.Errorf(exitcode.Verify, "%s: model verify failed: got %q want %q", after.Name, after.DefaultModel, req.Desired.Model)
 	}
-	if req.Desired.Provider != "" && after.Provider != req.Desired.Provider && writesProvider(req.Adapter.Name()) {
+	if req.Desired.Provider != "" && after.Provider != req.Desired.Provider {
 		return rep, exitcode.Errorf(exitcode.Verify, "%s: provider verify failed: got %q want %q", after.Name, after.Provider, req.Desired.Provider)
 	}
 	if req.Desired.SecretRef != "" && after.SecretRef != req.Desired.SecretRef {
@@ -104,12 +109,14 @@ func Apply(req Request) (model.ApplyReport, error) {
 	return rep, nil
 }
 
-func writesProvider(name string) bool {
+func rejectUnsupportedProvider(name string) error {
 	switch name {
-	case "grok", "claude":
-		return false
+	case "claude":
+		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for claude (provider is implicit anthropic); use set model")
+	case "grok":
+		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for grok (inferred from base_url); use set model")
 	default:
-		return true
+		return nil
 	}
 }
 

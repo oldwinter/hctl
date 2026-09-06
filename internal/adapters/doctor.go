@@ -2,14 +2,15 @@ package adapters
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
-	"github.com/oldwinter/harnessctl/internal/model"
+	"github.com/oldwinter/hctl/internal/model"
 )
 
 // Doctor derives check rows from snapshots, including key-drift by shared host.
 func Doctor(snaps []model.Snapshot) []model.DoctorCheck {
-	driftHosts := keyDriftHosts(snaps)
+	driftNames := keyDriftNamesByHost(snaps)
 	out := make([]model.DoctorCheck, 0, len(snaps))
 	for _, s := range snaps {
 		c := model.DoctorCheck{Name: s.Name}
@@ -65,9 +66,9 @@ func Doctor(snaps []model.Snapshot) []model.DoctorCheck {
 		} else {
 			c.Onboarding = "ok"
 		}
-		if s.BaseURLHost != "" && driftHosts[s.BaseURLHost] {
+		if names, ok := driftNames[s.BaseURLHost]; ok && s.BaseURLHost != "" {
 			c.Drift = "key-drift"
-			msg := fmt.Sprintf("key drift on host %s", s.BaseURLHost)
+			msg := fmt.Sprintf("key drift on host %s (%s)", s.BaseURLHost, strings.Join(names, ","))
 			if c.Message == "" {
 				c.Message = msg
 			} else {
@@ -82,22 +83,31 @@ func Doctor(snaps []model.Snapshot) []model.DoctorCheck {
 	return out
 }
 
-func keyDriftHosts(snaps []model.Snapshot) map[string]bool {
+func keyDriftNamesByHost(snaps []model.Snapshot) map[string][]string {
 	type set map[string]struct{}
-	byHost := map[string]set{}
+	fps := map[string]set{}
+	names := map[string][]string{}
+	seen := map[string]map[string]bool{}
 	for _, s := range snaps {
 		if s.BaseURLHost == "" || s.SecretFingerprint == "" {
 			continue
 		}
-		if byHost[s.BaseURLHost] == nil {
-			byHost[s.BaseURLHost] = set{}
+		if fps[s.BaseURLHost] == nil {
+			fps[s.BaseURLHost] = set{}
+			seen[s.BaseURLHost] = map[string]bool{}
 		}
-		byHost[s.BaseURLHost][s.SecretFingerprint] = struct{}{}
+		fps[s.BaseURLHost][s.SecretFingerprint] = struct{}{}
+		if !seen[s.BaseURLHost][s.Name] {
+			names[s.BaseURLHost] = append(names[s.BaseURLHost], s.Name)
+			seen[s.BaseURLHost][s.Name] = true
+		}
 	}
-	out := map[string]bool{}
-	for host, fps := range byHost {
-		if len(fps) > 1 {
-			out[host] = true
+	out := map[string][]string{}
+	for host, fpset := range fps {
+		if len(fpset) > 1 {
+			n := append([]string(nil), names[host]...)
+			sort.Strings(n)
+			out[host] = n
 		}
 	}
 	return out

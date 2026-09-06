@@ -4,6 +4,28 @@ All notable changes to this project are documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/).
 
+## [1.0.1] - 2026-09-06
+
+Hardening after the 1.0.0 report. Module path no longer collides with the Rust `harnessctl`.
+
+### Changed
+- Module is `github.com/oldwinter/hctl`. Primary binary is `hctl`; `harnessctl` remains a secondary entrypoint.
+- SSH `doctor` install checks use remote `command -v` (10s timeout), not the local PATH. Remote `--version` is not probed.
+- Claude onboarding reads `~/.claude.json` (`theme` + `hasCompletedOnboarding`). Missing or incomplete first-run is `onboarding=needed`.
+- Key-drift messages name the grouped harnesses: `key drift on host HOST (claude,codex)`.
+- `set provider` for Claude and Grok returns a usage error (including `--dry-run`) instead of a silent no-op.
+- `just release` writes `dist/hctl_linux_amd64`, `dist/harnessctl_linux_amd64`, and `dist/SHA256SUMS`.
+
+### Security
+- Same secret redaction contract as 1.0.0.
+
+### Known limitations
+- JSONC comments and trailing commas are dropped on write (emitted as JSON).
+- JSON key order may change after `set`/`apply`.
+- TOML/YAML comments on **unrelated** keys are kept; new keys are appended.
+- cursor-agent login probe still uses local `cursor-agent status` (800ms) and is skipped on SSH filesystems.
+- 1.0 no brew tap / GUI.
+
 ## [1.0.0] - 2026-09-06
 
 First production-ready release.
@@ -22,13 +44,6 @@ First production-ready release.
 ### Security
 - Snapshots never store or print plaintext keys.
 - Bearer sync copies bytes without logging; only fingerprints are shown.
-
-### Known limitations
-- JSONC comments and trailing commas are dropped on write (emitted as JSON).
-- JSON key order may change after `set`/`apply`.
-- TOML/YAML comments on **unrelated** keys are kept; new keys are appended.
-- Remote install detection uses the local PATH for binaries; SSH `doctor` reports remote config, not remote `LookPath` (unless you run the binary on that host).
-- Grok/Claude `set provider` is inferred or implicit; verify skips those provider fields.
 
 ## [0.3.0] - 2026-09-06
 

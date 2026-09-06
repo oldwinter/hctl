@@ -3,14 +3,14 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oldwinter/harnessctl/internal/adapters"
-	"github.com/oldwinter/harnessctl/internal/config"
-	"github.com/oldwinter/harnessctl/internal/exitcode"
-	"github.com/oldwinter/harnessctl/internal/fsx"
-	"github.com/oldwinter/harnessctl/internal/model"
-	"github.com/oldwinter/harnessctl/internal/mutate"
-	"github.com/oldwinter/harnessctl/internal/remote"
-	"github.com/oldwinter/harnessctl/internal/render"
+	"github.com/oldwinter/hctl/internal/adapters"
+	"github.com/oldwinter/hctl/internal/config"
+	"github.com/oldwinter/hctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/mutate"
+	"github.com/oldwinter/hctl/internal/remote"
+	"github.com/oldwinter/hctl/internal/render"
 )
 
 func newSetCmd(opts *options) *cobra.Command {
@@ -20,13 +20,17 @@ func newSetCmd(opts *options) *cobra.Command {
 		Short: "Set a harness field (model or provider) with backup and verify",
 		Long: `Mutate one field on a harness config.
 
-  harnessctl set model codex o4-mini --dry-run
-  harnessctl set model codex o4-mini
-  harnessctl set provider hermes custom
+  hctl set model codex o4-mini --dry-run
+  hctl set model codex o4-mini
+  hctl set provider hermes custom
 
 Writes are atomic (temp + rename). The previous file is copied to
 ~/.harnessctl/backups/<harness>-<timestamp>.bak (or $HARNESSCTL_BACKUP_DIR).
 After write the snapshot is re-read and must match the intent.
+
+set provider is unsupported for claude (implicit anthropic) and grok
+(inferred from base_url). Those commands return a usage error even with
+--dry-run — they do not silently no-op.
 
 Secrets are never printed. Unrelated keys are kept; see README for
 format-preservation caveats (JSONC comments are dropped).`,

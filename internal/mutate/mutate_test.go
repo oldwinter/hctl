@@ -6,11 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/oldwinter/harnessctl/internal/adapters"
-	"github.com/oldwinter/harnessctl/internal/adapters/codex"
-	"github.com/oldwinter/harnessctl/internal/fsx"
-	"github.com/oldwinter/harnessctl/internal/model"
-	"github.com/oldwinter/harnessctl/internal/testutil"
+	"github.com/oldwinter/hctl/internal/adapters"
+	"github.com/oldwinter/hctl/internal/adapters/claude"
+	"github.com/oldwinter/hctl/internal/adapters/codex"
+	"github.com/oldwinter/hctl/internal/adapters/grok"
+	"github.com/oldwinter/hctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/testutil"
 )
 
 func TestApplySetModelRoundTrip(t *testing.T) {
@@ -70,5 +73,41 @@ func TestDryRunDoesNotWrite(t *testing.T) {
 	after, _ := os.ReadFile(filepath.Join(home, ".codex", "config.toml"))
 	if string(before) != string(after) {
 		t.Fatal("dry-run mutated file")
+	}
+}
+
+func TestSetProviderUnsupportedClaudeAndGrok(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	cases := []struct {
+		ad   adapters.Adapter
+		name string
+	}{
+		{claude.Adapter{}, "claude"},
+		{grok.Adapter{}, "grok"},
+	}
+	for _, tc := range cases {
+		beforeClaude, _ := os.ReadFile(filepath.Join(home, ".claude", "settings.json"))
+		beforeGrok, _ := os.ReadFile(filepath.Join(home, ".grok", "config.toml"))
+		_, err := Apply(Request{
+			Adapter: tc.ad,
+			FS:      fsx.Local{},
+			Home:    home,
+			Desired: model.Desired{Provider: "custom"},
+			DryRun:  true,
+		})
+		if err == nil {
+			t.Fatalf("%s: expected unsupported error", tc.name)
+		}
+		if exitcode.From(err) != exitcode.Usage {
+			t.Fatalf("%s: code=%d err=%v", tc.name, exitcode.From(err), err)
+		}
+		if !strings.Contains(err.Error(), "unsupported") {
+			t.Fatalf("%s: err=%v", tc.name, err)
+		}
+		afterClaude, _ := os.ReadFile(filepath.Join(home, ".claude", "settings.json"))
+		afterGrok, _ := os.ReadFile(filepath.Join(home, ".grok", "config.toml"))
+		if string(beforeClaude) != string(afterClaude) || string(beforeGrok) != string(afterGrok) {
+			t.Fatalf("%s: dry-run/error mutated files", tc.name)
+		}
 	}
 }

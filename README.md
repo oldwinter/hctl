@@ -1,12 +1,14 @@
-# harnessctl
+# hctl
 
-kubectl 风格的 AI 编程 agent **harness 控制面**（1.0）：在多台机器上 **读取、对比、安全改写、同步** Codex / Claude Code / Grok Build / Hermes / OpenCode / pi / droid / cursor-agent 的配置、默认模型和供应商。
+kubectl 风格的 AI 编程 agent **harness 控制面**（1.0.1）：在多台机器上 **读取、对比、安全改写、同步** Codex / Claude Code / Grok Build / Hermes / OpenCode / pi / droid / cursor-agent 的配置、默认模型和供应商。
+
+主二进制是 **`hctl`**；`harnessctl` 仍作为同功能的次级入口。模块路径是 `github.com/oldwinter/hctl`，**不是** Rust 项目 `github.com/oldwinter/harnessctl`（声明式 harness 配置，互不覆盖）。
 
 **不是调度器。** 不启动 agent，不替代 `all-cli`，不依赖 Herdr runtime。
 
 ## kubectl 对照
 
-| kubectl | harnessctl |
+| kubectl | hctl |
 | --- | --- |
 | Context = 集群 | **Context = 环境 / 机器**（本机 `mba`、SSH `box`） |
 | Resource | `harness` / `model` |
@@ -14,30 +16,47 @@ kubectl 风格的 AI 编程 agent **harness 控制面**（1.0）：在多台机�
 
 ## 安装
 
-模块路径：`github.com/oldwinter/harnessctl`。
+模块路径：`github.com/oldwinter/hctl`。
 
-若仓库还在 Origin 上，创建 GitHub 远程后再 `go install`：
+GitHub 仓库就绪后：
 
 ```bash
-go install github.com/oldwinter/harnessctl/cmd/harnessctl@v1.0.0
-go install github.com/oldwinter/harnessctl/cmd/hctl@v1.0.0
-
-# 或从源码
-just build          # bin/harnessctl + bin/hctl
-go build -o harnessctl ./cmd/harnessctl
-go build -o hctl ./cmd/hctl
+go install github.com/oldwinter/hctl/cmd/hctl@v1.0.1
+go install github.com/oldwinter/hctl/cmd/harnessctl@v1.0.1
 ```
 
-Homebrew tap 不在 1.0 范围；需要时再加 `brew tap oldwinter/tap`。
+若 GitHub 远程尚未创建，从 Origin 克隆后本地编译：
+
+```bash
+git clone <origin-url>
+cd hctl
+just build          # bin/hctl + bin/harnessctl
+just release        # dist/hctl_linux_amd64 + dist/harnessctl_linux_amd64 + SHA256SUMS
+```
+
+发布产物（`just release`）：
+
+| 文件 | 说明 |
+| --- | --- |
+| `dist/hctl_linux_amd64` | 主二进制（linux/amd64） |
+| `dist/harnessctl_linux_amd64` | 次级入口（linux/amd64） |
+| `dist/SHA256SUMS` | SHA-256 校验和 |
+
+```bash
+cd dist
+sha256sum -c SHA256SUMS
+```
+
+Homebrew tap 不在 1.0 范围。
 
 ## 快速开始
 
 ```bash
-harnessctl version
-harnessctl config get-contexts
-harnessctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses
-harnessctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses -o wide
-harnessctl --home testdata/home-a --config testdata/harnessctl.yaml --json get models
+hctl version
+hctl config get-contexts
+hctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses
+hctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses -o wide
+hctl --home testdata/home-a --config testdata/harnessctl.yaml --json get models
 ```
 
 环境变量：`HARNESSCTL_HOME`、`HARNESSCTL_CONFIG`、`HARNESSCTL_BACKUP_DIR`、`HARNESSCTL_SSH=0`（测试时禁止真 SSH）。
@@ -47,9 +66,9 @@ harnessctl --home testdata/home-a --config testdata/harnessctl.yaml --json get m
 默认文件：`~/.harnessctl/config.yaml`。
 
 ```bash
-harnessctl config set-context mba --kind local
-harnessctl config set-context box --kind ssh --ssh you@box.example --home /home/you --identity ~/.ssh/id_ed25519
-harnessctl config use-context mba
+hctl config set-context mba --kind local
+hctl config set-context box --kind ssh --ssh you@box.example --home /home/you --identity ~/.ssh/id_ed25519
+hctl config use-context mba
 ```
 
 ```yaml
@@ -68,7 +87,7 @@ contexts:
       identityFile: /Users/you/.ssh/id_ed25519
 ```
 
-SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`。远程读写用 `cat` / `mv`，备份仍落在**本机** `~/.harnessctl/backups/`。
+SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`，整段命令 10s 超时。远程读写用 `cat` / `mv`；`doctor` 用远程 `command -v` 判断是否安装（不远程跑 `--version`）。备份仍落在**本机** `~/.harnessctl/backups/`。
 
 ## 命令矩阵
 
@@ -92,28 +111,19 @@ SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`。远程读写用 `ca
 ## set / apply / sync
 
 ```bash
-# 先看再写
-harnessctl --home testdata/home-a set model codex o4-mini --dry-run
-harnessctl --home testdata/home-a set model codex o4-mini
+hctl --home testdata/home-a set model codex o4-mini --dry-run
+hctl --home testdata/home-a set model codex o4-mini
 
-harnessctl --home testdata/home-a apply -f testdata/desired.toml --dry-run
-harnessctl --home testdata/home-a apply -f testdata/desired.toml
+hctl --home testdata/home-a apply -f testdata/desired.toml --dry-run
+hctl --home testdata/home-a apply -f testdata/desired.toml
 
-# 跨环境（两边都配置好之后）
-harnessctl sync --from mba --to box --harness codex,claude --dry-run
-harnessctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
+hctl sync --from mba --to box --harness codex,claude --dry-run
+hctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
 ```
 
 `--fields secret` 会把 bearer **字节**拷到对端（SSH 管道，不写日志），屏幕上只出现指纹。能用 `secret-ref`（环境变量名）就不要拷密钥。
 
-### dry-run sync 示例（已脱敏）
-
-```
-dry-run: no files written
-HARNESS  FIELD  FROM           TO              PATH
-codex    model  o4-mini        gpt-5.2-codex   -
-secret codex action=bearer from=sha256:b6310a05
-```
+**`set provider` 诚实行为：** Claude 的供应商是隐式 anthropic，Grok 从 `base_url` 推断，二者**不写 provider 字段**。对这些 harness 执行 `set provider`（含 `--dry-run`）会立刻返回用法错误，而不是静默成功后再在 verify 里失败。
 
 写入是「备份 → 临时文件 → rename → 再读校验」。备份：`~/.harnessctl/backups/<harness>-<timestamp>.bak`。
 
@@ -124,6 +134,15 @@ secret codex action=bearer from=sha256:b6310a05
 - host 去掉 userinfo / path。
 - 渲染层再滤一层 `sk-…` / 长 hex。
 - `testdata/` 只有 `sk-test-aaa` / `sk-test-bbb`。
+- 同一 `BaseURLHost` 上指纹不一致时，`doctor` 按 host 分组并标 `key-drift`。
+
+## Claude onboarding
+
+`doctor` 会读 `~/.claude.json`（不仅是 `~/.claude/settings.json`）：
+
+- 文件缺失 → `onboarding=needed`
+- 缺少 `theme` 或 `hasCompletedOnboarding` → `onboarding=needed`
+- `settings.json` 只剩 theme、没有 model → 额外提示 wizard leftover
 
 ## 格式保留（写入时）
 
@@ -139,13 +158,13 @@ secret codex action=bearer from=sha256:b6310a05
 | 名称 | 路径 |
 | --- | --- |
 | codex | `~/.codex/config.toml` |
-| claude | `~/.claude/settings.json` |
+| claude | `~/.claude/settings.json` + `~/.claude.json` |
 | grok | `~/.grok/config.toml` |
 | hermes | `~/.hermes/config.yaml` + `.env` |
 | opencode | `~/.config/opencode/opencode.jsonc` |
 | pi | `~/.pi/agent/settings.json` + `auth.json` |
 | droid | `~/.factory/settings.json` |
-| cursor-agent | `~/.cursor/cli-config.json`（`cursor-agent status` 短超时探测登录） |
+| cursor-agent | `~/.cursor/cli-config.json`（本地 `cursor-agent status` 800ms 超时探测登录） |
 
 `--json` 字段见 [`docs/json-schemas.md`](docs/json-schemas.md)。
 
@@ -156,6 +175,7 @@ just test
 just race
 just lint
 just smoke
+just release
 ```
 
 ## 非目标

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/oldwinter/harnessctl/internal/render"
-	"github.com/oldwinter/harnessctl/internal/secret"
-	"github.com/oldwinter/harnessctl/internal/testutil"
+	"github.com/oldwinter/hctl/internal/render"
+	"github.com/oldwinter/hctl/internal/secret"
+	"github.com/oldwinter/hctl/internal/testutil"
 )
 
 func TestScanNeverLeaksFixtures(t *testing.T) {
@@ -73,6 +73,12 @@ func TestDoctorKeyDrift(t *testing.T) {
 		if c.Name == "codex" || c.Name == "claude" {
 			if c.Drift != "key-drift" {
 				t.Fatalf("%s drift=%q msg=%q", c.Name, c.Drift, c.Message)
+			}
+			if !strings.Contains(c.Message, "sub2api.example") {
+				t.Fatalf("host missing: %q", c.Message)
+			}
+			if !strings.Contains(c.Message, "claude") || !strings.Contains(c.Message, "codex") {
+				t.Fatalf("grouped names missing: %q", c.Message)
 			}
 			found = true
 		}

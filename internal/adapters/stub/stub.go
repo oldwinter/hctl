@@ -1,8 +1,8 @@
 package stub
 
 import (
-	"github.com/oldwinter/harnessctl/internal/fsx"
-	"github.com/oldwinter/harnessctl/internal/model"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
 )
 
 // Adapter is a read-only placeholder for harnesses without a dedicated parser.

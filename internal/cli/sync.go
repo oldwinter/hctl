@@ -5,12 +5,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oldwinter/harnessctl/internal/adapters"
-	"github.com/oldwinter/harnessctl/internal/exitcode"
-	"github.com/oldwinter/harnessctl/internal/model"
-	"github.com/oldwinter/harnessctl/internal/mutate"
-	"github.com/oldwinter/harnessctl/internal/render"
-	"github.com/oldwinter/harnessctl/internal/secret"
+	"github.com/oldwinter/hctl/internal/adapters"
+	"github.com/oldwinter/hctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/mutate"
+	"github.com/oldwinter/hctl/internal/render"
+	"github.com/oldwinter/hctl/internal/secret"
 )
 
 func newSyncCmd(opts *options) *cobra.Command {

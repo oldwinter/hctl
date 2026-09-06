@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/oldwinter/harnessctl/internal/adapters/claude"
-	"github.com/oldwinter/harnessctl/internal/adapters/codex"
-	"github.com/oldwinter/harnessctl/internal/adapters/cursor"
-	"github.com/oldwinter/harnessctl/internal/adapters/droid"
-	"github.com/oldwinter/harnessctl/internal/adapters/grok"
-	"github.com/oldwinter/harnessctl/internal/adapters/hermes"
-	"github.com/oldwinter/harnessctl/internal/adapters/opencode"
-	"github.com/oldwinter/harnessctl/internal/adapters/pi"
-	"github.com/oldwinter/harnessctl/internal/fsx"
-	"github.com/oldwinter/harnessctl/internal/model"
+	"github.com/oldwinter/hctl/internal/adapters/claude"
+	"github.com/oldwinter/hctl/internal/adapters/codex"
+	"github.com/oldwinter/hctl/internal/adapters/cursor"
+	"github.com/oldwinter/hctl/internal/adapters/droid"
+	"github.com/oldwinter/hctl/internal/adapters/grok"
+	"github.com/oldwinter/hctl/internal/adapters/hermes"
+	"github.com/oldwinter/hctl/internal/adapters/opencode"
+	"github.com/oldwinter/hctl/internal/adapters/pi"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
 )
 
 // Adapter reads one harness's on-disk config into the unified snapshot.
@@ -109,7 +109,7 @@ func ReadOneFS(a Adapter, fsys fsx.FS, home string) (model.Snapshot, error) {
 	if snap.Name == "" {
 		snap.Name = a.Name()
 	}
-	path, ver, ok := DetectBinary(a.BinaryNames())
+	path, ver, ok := DetectBinaryFS(fsys, a.BinaryNames())
 	snap.Installed = ok
 	snap.InstalledPath = path
 	if snap.Version == "" {

@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/oldwinter/harnessctl/internal/edit"
-	"github.com/oldwinter/harnessctl/internal/exitcode"
-	"github.com/oldwinter/harnessctl/internal/fsx"
-	"github.com/oldwinter/harnessctl/internal/model"
-	"github.com/oldwinter/harnessctl/internal/secret"
+	"github.com/oldwinter/hctl/internal/edit"
+	"github.com/oldwinter/hctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/secret"
 )
 
 // Adapter reads and writes ~/.claude/settings.json.
@@ -18,7 +18,7 @@ func (Adapter) Name() string          { return "claude" }
 func (Adapter) Aliases() []string     { return []string{"claude-code"} }
 func (Adapter) BinaryNames() []string { return []string{"claude"} }
 func (Adapter) ConfigRelPaths() []string {
-	return []string{".claude/settings.json"}
+	return []string{".claude/settings.json", ".claude.json"}
 }
 
 type file struct {
@@ -33,35 +33,42 @@ func (a Adapter) Read(home string) (model.Snapshot, error) {
 
 func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
 	path := fsys.Join(home, ".claude", "settings.json")
-	snap := model.Snapshot{Name: a.Name(), ConfigPaths: []string{path}, Provider: "anthropic"}
+	onboardPath := fsys.Join(home, ".claude.json")
+	snap := model.Snapshot{Name: a.Name(), ConfigPaths: []string{path, onboardPath}, Provider: "anthropic"}
 	data, err := fsys.ReadFile(path)
 	if err != nil {
-		if fsx.IsNotExist(err) {
+		if !fsx.IsNotExist(err) {
+			return snap, err
+		}
+	} else {
+		snap.ConfigFound = true
+		var cfg file
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			snap.ParseError = err.Error()
+			noteClaudeOnboarding(fsys, onboardPath, &snap)
 			return snap, nil
 		}
-		return snap, err
+		snap.DefaultModel = cfg.Model
+		if cfg.Theme != "" && cfg.Model == "" && len(cfg.Env) == 0 {
+			snap.Notes = append(snap.Notes, "theme wizard leftover — onboarding incomplete")
+		}
+		if cfg.Env != nil {
+			applyClaudeEnv(&snap, cfg.Env)
+		}
 	}
-	snap.ConfigFound = true
-	var cfg file
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		snap.ParseError = err.Error()
-		return snap, nil
-	}
-	snap.DefaultModel = cfg.Model
-	if cfg.Theme != "" && cfg.Model == "" && len(cfg.Env) == 0 {
-		snap.Notes = append(snap.Notes, "theme wizard leftover — onboarding incomplete")
-	}
-	if cfg.Env == nil {
-		return snap, nil
-	}
-	if m := cfg.Env["ANTHROPIC_MODEL"]; m != "" && snap.DefaultModel == "" {
+	noteClaudeOnboarding(fsys, onboardPath, &snap)
+	return snap, nil
+}
+
+func applyClaudeEnv(snap *model.Snapshot, env map[string]string) {
+	if m := env["ANTHROPIC_MODEL"]; m != "" && snap.DefaultModel == "" {
 		snap.DefaultModel = m
 	}
-	if u := cfg.Env["ANTHROPIC_BASE_URL"]; u != "" {
+	if u := env["ANTHROPIC_BASE_URL"]; u != "" {
 		snap.BaseURLHost = secret.HostOf(u)
 	}
 	aliases := map[string]string{}
-	for k, v := range cfg.Env {
+	for k, v := range env {
 		if strings.HasPrefix(k, "ANTHROPIC_DEFAULT_") && strings.HasSuffix(k, "_MODEL") && v != "" {
 			aliases[k] = v
 		}
@@ -70,7 +77,7 @@ func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
 		snap.Aliases = aliases
 	}
 	for _, key := range []string{"ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"} {
-		if val := cfg.Env[key]; val != "" {
+		if val := env[key]; val != "" {
 			if name, isRef := secret.EnvRef(val); isRef {
 				snap.SecretRef = name
 				continue
@@ -80,12 +87,47 @@ func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
 			break
 		}
 	}
-	return snap, nil
+}
+
+func noteClaudeOnboarding(fsys fsx.FS, path string, snap *model.Snapshot) {
+	data, err := fsys.ReadFile(path)
+	if err != nil {
+		if fsx.IsNotExist(err) {
+			snap.Notes = append(snap.Notes, "missing ~/.claude.json — first-run onboarding needed")
+		}
+		return
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		snap.Notes = append(snap.Notes, "unreadable ~/.claude.json — first-run onboarding needed")
+		return
+	}
+	theme, _ := raw["theme"].(string)
+	completed := claudeOnboardingComplete(raw)
+	if strings.TrimSpace(theme) == "" || !completed {
+		snap.Notes = append(snap.Notes, "incomplete ~/.claude.json (missing theme / onboarding) — first-run onboarding needed")
+	}
+}
+
+func claudeOnboardingComplete(raw map[string]any) bool {
+	for _, key := range []string{"hasCompletedOnboarding", "hasCompletedOnboardingForNewUsers"} {
+		switch v := raw[key].(type) {
+		case bool:
+			if v {
+				return true
+			}
+		case string:
+			if strings.EqualFold(v, "true") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
-	if d.Provider != "" && !strings.EqualFold(d.Provider, "anthropic") {
-		return nil, exitcode.Errorf(exitcode.Usage, "claude provider is implicit (anthropic); got %q", d.Provider)
+	if d.Provider != "" {
+		return nil, exitcode.Errorf(exitcode.Usage, "set provider is unsupported for claude (provider is implicit anthropic); use set model")
 	}
 	path := fsys.Join(home, ".claude", "settings.json")
 	data, err := fsx.ReadMaybe(fsys, path)

@@ -2,6 +2,7 @@ package fsx
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,8 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oldwinter/harnessctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/exitcode"
 )
+
+// runTimeout bounds every SSH invocation so doctor/LookPath cannot hang.
+var runTimeout = 10 * time.Second
 
 // Runner runs a command. stdin may be nil.
 type Runner func(stdin []byte, name string, args ...string) (stdout []byte, err error)
@@ -50,7 +54,9 @@ func (s SSH) run(stdin []byte, remoteCmd string) ([]byte, error) {
 }
 
 func defaultRunner(stdin []byte, name string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), runTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}
@@ -58,6 +64,9 @@ func defaultRunner(stdin []byte, name string, args ...string) ([]byte, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		if ctx.Err() != nil {
+			return stdout.Bytes(), fmt.Errorf("ssh timed out after %s: %w", runTimeout, ctx.Err())
+		}
 		msg := strings.TrimSpace(stderr.String())
 		if msg != "" {
 			return stdout.Bytes(), fmt.Errorf("%v: %s", err, msg)
@@ -65,6 +74,22 @@ func defaultRunner(stdin []byte, name string, args ...string) ([]byte, error) {
 		return stdout.Bytes(), err
 	}
 	return stdout.Bytes(), nil
+}
+
+// LookPath runs `command -v` on the remote host. It does not probe --version.
+func (s SSH) LookPath(name string) (string, error) {
+	if name == "" || strings.ContainsAny(name, " \t\n;$`|&<>(){}") {
+		return "", fmt.Errorf("invalid binary name %q", name)
+	}
+	out, err := s.run(nil, fmt.Sprintf(`command -v %s`, shq(name)))
+	if err != nil {
+		return "", err
+	}
+	p := strings.TrimSpace(string(out))
+	if p == "" {
+		return "", os.ErrNotExist
+	}
+	return p, nil
 }
 
 func (s SSH) Join(elem ...string) string {

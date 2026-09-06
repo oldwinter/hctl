@@ -9,7 +9,7 @@ import (
 	toml "github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/oldwinter/harnessctl/internal/model"
+	"github.com/oldwinter/hctl/internal/model"
 )
 
 // Load reads a desired-state file (TOML or YAML, by extension or content).

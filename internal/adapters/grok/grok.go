@@ -5,10 +5,11 @@ import (
 
 	toml "github.com/pelletier/go-toml/v2"
 
-	"github.com/oldwinter/harnessctl/internal/edit"
-	"github.com/oldwinter/harnessctl/internal/fsx"
-	"github.com/oldwinter/harnessctl/internal/model"
-	"github.com/oldwinter/harnessctl/internal/secret"
+	"github.com/oldwinter/hctl/internal/edit"
+	"github.com/oldwinter/hctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/secret"
 )
 
 // Adapter reads and writes ~/.grok/config.toml.
@@ -123,6 +124,9 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 	if err != nil {
 		return nil, err
 	}
+	if d.Provider != "" {
+		return nil, exitcode.Errorf(exitcode.Usage, "set provider is unsupported for grok (inferred from base_url); use set model")
+	}
 	if d.Model != "" {
 		data, err = edit.SetTOML(data, []string{"models", "default"}, d.Model)
 		if err != nil {
@@ -143,7 +147,6 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 			return nil, err
 		}
 	}
-	// provider is inferred from host; stored only as a note via no-op
 	if err := fsx.AtomicWrite(fsys, path, data, 0o600); err != nil {
 		return nil, err
 	}

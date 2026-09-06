@@ -1,4 +1,4 @@
-module github.com/oldwinter/harnessctl
+module github.com/oldwinter/hctl
 
 go 1.22
 

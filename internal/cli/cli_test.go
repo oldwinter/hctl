@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/oldwinter/harnessctl/internal/testutil"
+	"github.com/oldwinter/hctl/internal/testutil"
 )
 
 func run(t *testing.T, args ...string) (string, error) {
@@ -27,7 +27,7 @@ func TestCompletionBash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "harnessctl") {
+	if !strings.Contains(out, "hctl") && !strings.Contains(out, "harnessctl") {
 		t.Fatal(out[:min(len(out), 80)])
 	}
 }
@@ -37,7 +37,7 @@ func TestVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "harnessctl version "+Version) {
+	if !strings.Contains(out, "hctl version "+Version) && !strings.Contains(out, "harnessctl version "+Version) {
 		t.Fatal(out)
 	}
 }
@@ -271,6 +271,20 @@ func TestSetModelRoundTrip(t *testing.T) {
 	}
 	if strings.Contains(out, "sk-test") {
 		t.Fatal(out)
+	}
+}
+
+func TestSetProviderUnsupported(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	for _, name := range []string{"claude", "grok"} {
+		_, err := run(t, "--home", home, "--config", cfg, "set", "provider", name, "custom", "--dry-run")
+		if err == nil {
+			t.Fatalf("%s: expected error", name)
+		}
+		if !strings.Contains(err.Error(), "unsupported") {
+			t.Fatalf("%s: %v", name, err)
+		}
 	}
 }
 

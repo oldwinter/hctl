@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/oldwinter/harnessctl/internal/model"
-	"github.com/oldwinter/harnessctl/internal/secret"
+	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/secret"
 )
 
 func TestHarnessesTableUsesFingerprintOnly(t *testing.T) {

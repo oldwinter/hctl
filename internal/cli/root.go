@@ -6,12 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oldwinter/harnessctl/internal/config"
+	"github.com/oldwinter/hctl/internal/config"
 )
 
 // Version is the CLI version string. Override via -ldflags.
 var (
-	Version = "1.0.0"
+	Version = "1.0.1"
 	Commit  = "unknown"
 	Date    = "unknown"
 )
@@ -56,15 +56,16 @@ func (o *options) scanHome(cfg *config.File) (contextName, home string, err erro
 // NewRoot builds the kubectl-style command tree.
 func NewRoot() *cobra.Command {
 	opts := &options{}
-	use := "harnessctl"
-	if filepath.Base(os.Args[0]) == "hctl" {
-		use = "hctl"
+	use := "hctl"
+	if filepath.Base(os.Args[0]) == "harnessctl" {
+		use = "harnessctl"
 	}
 	root := &cobra.Command{
 		Use:   use,
 		Short: "kubectl-style control plane for AI coding-agent harnesses",
-		Long: `harnessctl inventories coding-agent harness configs (Codex, Claude Code,
-Grok Build, Hermes, OpenCode, …) across machines — without dispatching agents.
+		Long: `hctl (also installed as harnessctl) inventories coding-agent harness configs
+(Codex, Claude Code, Grok Build, Hermes, OpenCode, …) across machines —
+without dispatching agents.
 
 Read, set, apply, and later sync harness configs. Secrets are never printed.
 

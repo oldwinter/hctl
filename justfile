@@ -1,17 +1,17 @@
-# harnessctl developer tasks
+# hctl developer tasks
 
-binary := "bin/harnessctl"
-alias_bin := "bin/hctl"
-version := "1.0.0"
+binary := "bin/hctl"
+alias_bin := "bin/harnessctl"
+version := "1.0.1"
 commit := `git rev-parse --short HEAD 2>/dev/null || echo unknown`
 date := `date -u +%Y-%m-%dT%H:%M:%SZ`
 
-ldflags := "-X github.com/oldwinter/harnessctl/internal/cli.Version=" + version + " -X github.com/oldwinter/harnessctl/internal/cli.Commit=" + commit + " -X github.com/oldwinter/harnessctl/internal/cli.Date=" + date
+ldflags := "-X github.com/oldwinter/hctl/internal/cli.Version=" + version + " -X github.com/oldwinter/hctl/internal/cli.Commit=" + commit + " -X github.com/oldwinter/hctl/internal/cli.Date=" + date
 
 build:
 	mkdir -p bin
-	go build -ldflags="{{ldflags}}" -o {{binary}} ./cmd/harnessctl
-	ln -sfn harnessctl {{alias_bin}}
+	go build -ldflags="{{ldflags}}" -o {{binary}} ./cmd/hctl
+	go build -ldflags="{{ldflags}}" -o {{alias_bin}} ./cmd/harnessctl
 
 test:
 	go test ./...
@@ -32,6 +32,17 @@ lint:
 		go vet ./...
 	fi
 
+# Cross-compile linux/amd64 binaries and SHA-256 checksums into dist/.
+release:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	mkdir -p dist
+	GOOS=linux GOARCH=amd64 go build -ldflags="{{ldflags}}" -o dist/hctl_linux_amd64 ./cmd/hctl
+	GOOS=linux GOARCH=amd64 go build -ldflags="{{ldflags}}" -o dist/harnessctl_linux_amd64 ./cmd/harnessctl
+	( cd dist && sha256sum hctl_linux_amd64 harnessctl_linux_amd64 > SHA256SUMS )
+	echo "checksums:"
+	cat dist/SHA256SUMS
+
 smoke: build
 	{{binary}} version
 	{{alias_bin}} version
@@ -43,6 +54,6 @@ smoke: build
 	{{binary}} --config testdata/harnessctl.yaml diff harness codex --home-a testdata/home-a --home-b testdata/home-b
 	{{binary}} --config testdata/harnessctl.yaml config get-contexts
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml set model codex o4-mini --dry-run
-	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml diff -f testdata/desired.toml
+	{{binary}} --config testdata/harnessctl.yaml diff -f testdata/desired.toml
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml apply -f testdata/desired.toml --dry-run
 	{{binary}} completion bash >/dev/null

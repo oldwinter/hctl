@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/oldwinter/harnessctl/internal/jsonc"
+	"github.com/oldwinter/hctl/internal/jsonc"
 )
 
 // Format names on-disk encodings we know how to mutate.

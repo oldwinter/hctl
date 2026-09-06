@@ -6,16 +6,38 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/oldwinter/hctl/internal/fsx"
 )
 
-// DetectBinary looks up the first name on PATH and optionally probes a version.
+// pathLooker resolves a binary name on a filesystem (local PATH or remote command -v).
+type pathLooker interface {
+	LookPath(name string) (string, error)
+}
+
+// DetectBinary looks up the first name on the local PATH and optionally probes a version.
 func DetectBinary(names []string) (path string, version string, ok bool) {
+	return DetectBinaryFS(fsx.Local{}, names)
+}
+
+// DetectBinaryFS resolves binaries on fsys.
+// SSH contexts use remote `command -v` only — no remote --version (hang risk).
+func DetectBinaryFS(fsys fsx.FS, names []string) (path string, version string, ok bool) {
+	lp, hasLP := fsys.(pathLooker)
+	_, remote := fsys.(fsx.SSH)
+	if !hasLP {
+		return "", "", false
+	}
 	for _, name := range names {
-		p, err := exec.LookPath(name)
-		if err != nil {
+		p, err := lp.LookPath(name)
+		if err != nil || strings.TrimSpace(p) == "" {
 			continue
 		}
-		return p, ProbeVersion(p), true
+		ver := ""
+		if !remote {
+			ver = ProbeVersion(p)
+		}
+		return p, ver, true
 	}
 	return "", "", false
 }

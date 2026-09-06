@@ -3,8 +3,8 @@ package desired
 import (
 	"testing"
 
-	"github.com/oldwinter/harnessctl/internal/model"
-	"github.com/oldwinter/harnessctl/internal/testutil"
+	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/testutil"
 )
 
 func TestLoadTOML(t *testing.T) {

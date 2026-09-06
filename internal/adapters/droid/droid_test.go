@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/oldwinter/harnessctl/internal/testutil"
+	"github.com/oldwinter/hctl/internal/testutil"
 )
 
 func TestReadHomeA(t *testing.T) {

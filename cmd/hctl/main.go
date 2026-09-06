@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/oldwinter/harnessctl/internal/cli"
-	"github.com/oldwinter/harnessctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/cli"
+	"github.com/oldwinter/hctl/internal/exitcode"
 )
 
 func main() {

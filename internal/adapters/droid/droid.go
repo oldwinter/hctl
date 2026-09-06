@@ -3,10 +3,10 @@ package droid
 import (
 	"encoding/json"
 
-	"github.com/oldwinter/harnessctl/internal/edit"
-	"github.com/oldwinter/harnessctl/internal/fsx"
-	"github.com/oldwinter/harnessctl/internal/model"
-	"github.com/oldwinter/harnessctl/internal/secret"
+	"github.com/oldwinter/hctl/internal/edit"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/secret"
 )
 
 // Adapter reads ~/.factory/settings.json (Factory Droid).

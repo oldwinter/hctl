@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`harnessctl` is the kubectl-style **config** control plane for coding-agent harnesses.
+`hctl` (module `github.com/oldwinter/hctl`, also built as `harnessctl`) is the kubectl-style **config** control plane for coding-agent harnesses. Do not publish to `github.com/oldwinter/harnessctl` — that is a different Rust project.
 
 ## Boundaries
 

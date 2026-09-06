@@ -5,10 +5,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/oldwinter/harnessctl/internal/edit"
-	"github.com/oldwinter/harnessctl/internal/fsx"
-	"github.com/oldwinter/harnessctl/internal/model"
-	"github.com/oldwinter/harnessctl/internal/secret"
+	"github.com/oldwinter/hctl/internal/edit"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/secret"
 )
 
 // Adapter reads and writes ~/.hermes/config.yaml and fingerprints ~/.hermes/.env.
