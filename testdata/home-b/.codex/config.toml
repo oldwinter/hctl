@@ -1,0 +1,9 @@
+model = "o4-mini"
+model_provider = "custom"
+model_reasoning_effort = "medium"
+
+[model_providers.custom]
+name = "Box Gateway"
+base_url = "https://llm.box.example/v1"
+experimental_bearer_token = "sk-test-bbb"
+wire_api = "responses"

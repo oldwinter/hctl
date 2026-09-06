@@ -1,0 +1,7 @@
+{
+  "model": "claude-opus-4",
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://gateway.box.example",
+    "ANTHROPIC_AUTH_TOKEN": "sk-test-bbb"
+  }
+}

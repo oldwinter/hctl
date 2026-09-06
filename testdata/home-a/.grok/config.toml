@@ -1,0 +1,9 @@
+[models]
+default = "grok-4.6"
+
+[model."grok-4.6"]
+model = "grok-4.6"
+base_url = "https://api.x.ai/v1"
+api_key = "sk-test-aaa"
+api_backend = "responses"
+reasoning_effort = "high"

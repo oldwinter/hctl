@@ -1,0 +1,10 @@
+{
+  "model": "claude-sonnet-4",
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+    "ANTHROPIC_AUTH_TOKEN": "sk-test-aaa",
+    "ANTHROPIC_MODEL": "claude-sonnet-4",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4"
+  }
+}

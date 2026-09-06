@@ -1,0 +1,12 @@
+{
+  // default model as provider/model
+  "model": "acme/gpt-5",
+  "provider": {
+    "acme": {
+      "options": {
+        "baseURL": "https://api.acme.example/v1",
+        "apiKey": "sk-test-aaa",
+      },
+    },
+  },
+}

@@ -1,0 +1,45 @@
+package codex
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/oldwinter/harnessctl/internal/secret"
+	"github.com/oldwinter/harnessctl/internal/testutil"
+)
+
+func TestReadHomeA(t *testing.T) {
+	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-a"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.DefaultModel != "gpt-5.2-codex" {
+		t.Fatalf("model = %q", snap.DefaultModel)
+	}
+	if snap.Provider != "custom" {
+		t.Fatalf("provider = %q", snap.Provider)
+	}
+	if snap.BaseURLHost != "api.openai.com" {
+		t.Fatalf("host = %q", snap.BaseURLHost)
+	}
+	if snap.Effort != "high" {
+		t.Fatalf("effort = %q", snap.Effort)
+	}
+	want := secret.Fingerprint("sk-test-aaa")
+	if snap.SecretFingerprint != want {
+		t.Fatalf("fp = %q want %q", snap.SecretFingerprint, want)
+	}
+	if strings.Contains(snap.String(), "sk-test-aaa") {
+		t.Fatalf("String leaked secret: %s", snap.String())
+	}
+}
+
+func TestMissingConfig(t *testing.T) {
+	snap, err := Adapter{}.Read(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.ConfigFound {
+		t.Fatal("expected missing")
+	}
+}

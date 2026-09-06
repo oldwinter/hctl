@@ -1,0 +1,5 @@
+model: ""
+providers:
+  nous:
+    base_url: https://hermes.nousresearch.com/v1
+    key_env: HERMES_API_KEY

@@ -1,0 +1,11 @@
+{
+  "model": "acme/gpt-4.1",
+  "providers": {
+    "acme": {
+      "settings": {
+        "baseURL": "https://llm.box.example/v1",
+        "apiKey": "{env:OPENCODE_API_KEY}"
+      }
+    }
+  }
+}

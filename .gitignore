@@ -1,0 +1,8 @@
+/bin/
+/harnessctl
+/hctl
+*.exe
+*.test
+coverage.out
+.DS_Store
+/agent-tools/

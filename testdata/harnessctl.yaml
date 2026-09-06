@@ -1,0 +1,12 @@
+apiVersion: harnessctl/v1
+kind: Config
+current-context: mba
+contexts:
+  - name: mba
+    context:
+      kind: local
+  - name: box
+    context:
+      kind: ssh
+      ssh: user@box.example
+      home: /home/user

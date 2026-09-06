@@ -1,0 +1,8 @@
+[models]
+default = "grok-4.5"
+
+[model."grok-4.5"]
+model = "grok-4.5"
+base_url = "https://api.x.ai/v1"
+api_key = "sk-test-bbb"
+api_backend = "chat_completions"

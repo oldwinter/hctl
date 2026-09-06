@@ -1,0 +1,8 @@
+model:
+  default: anthropic/claude-opus-4.6
+  provider: custom
+  base_url: https://openrouter.ai/api/v1
+providers:
+  custom:
+    base_url: https://openrouter.ai/api/v1
+    key_env: OPENROUTER_API_KEY

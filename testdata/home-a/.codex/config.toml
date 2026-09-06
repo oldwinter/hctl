@@ -1,0 +1,9 @@
+model = "gpt-5.2-codex"
+model_provider = "custom"
+model_reasoning_effort = "high"
+
+[model_providers.custom]
+name = "Custom Gateway"
+base_url = "https://api.openai.com/v1"
+experimental_bearer_token = "sk-test-aaa"
+wire_api = "responses"
