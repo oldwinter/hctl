@@ -43,17 +43,12 @@ git tag v1.0.1
 git push origin v1.0.1
 ```
 
-Module path is `github.com/oldwinter/hctl`. After the GitHub remote exists:
+Module path is `github.com/oldwinter/hctl`. Empty GitHub repo: https://github.com/oldwinter/hctl
 
 ```bash
 git remote add github git@github.com:oldwinter/hctl.git
-git push github main --tags
-```
-
-If `gh` can create the empty repo:
-
-```bash
-gh repo create oldwinter/hctl --public --source=. --remote=github --push
-git tag v1.0.1
+git push github main
 git push github v1.0.1
 ```
+
+`gh repo create` is not required anymore. Do **not** push this Go project to `oldwinter/harnessctl`.

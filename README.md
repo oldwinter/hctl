@@ -16,16 +16,20 @@ kubectl 风格的 AI 编程 agent **harness 控制面**（1.0.1）：在多台�
 
 ## 安装
 
-模块路径：`github.com/oldwinter/hctl`。
+模块路径：`github.com/oldwinter/hctl`。空仓库已创建：https://github.com/oldwinter/hctl （尚未推送代码；不要推到 Rust 项目 `oldwinter/harnessctl`）。
 
-GitHub 仓库就绪后：
+把本仓库的 `main` 和标签推上去之后：
 
 ```bash
+git remote add github git@github.com:oldwinter/hctl.git
+git push github main
+git push github v1.0.1
+
 go install github.com/oldwinter/hctl/cmd/hctl@v1.0.1
 go install github.com/oldwinter/hctl/cmd/harnessctl@v1.0.1
 ```
 
-若 GitHub 远程尚未创建，从 Origin 克隆后本地编译：
+在 GitHub 推送完成前，从当前 Origin 远程克隆后本地编译：
 
 ```bash
 git clone <origin-url>
