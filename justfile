@@ -57,3 +57,17 @@ smoke: build
 	{{binary}} --config testdata/harnessctl.yaml diff -f testdata/desired.toml
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml apply -f testdata/desired.toml --dry-run
 	{{binary}} completion bash >/dev/null
+
+
+# Fail unless statement coverage is exactly 100%.
+cover:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	go test ./... -coverprofile=coverage.out -covermode=atomic
+	total="$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}')"
+	echo "coverage total: ${total}"
+	if [[ "${total}" != "100.0%" ]]; then
+		go tool cover -func=coverage.out | grep -v '100.0%' || true
+		echo "coverage must be 100.0%, got ${total}" >&2
+		exit 1
+	fi

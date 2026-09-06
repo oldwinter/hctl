@@ -12,6 +12,9 @@ import (
 	"github.com/oldwinter/hctl/internal/model"
 )
 
+// userHomeDir is overridden in tests.
+var userHomeDir = os.UserHomeDir
+
 // FieldWriter can mutate harness config fields.
 type FieldWriter interface {
 	WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error)
@@ -128,7 +131,7 @@ func DefaultBackupDir(configPath string) string {
 	if configPath != "" {
 		return filepath.Join(filepath.Dir(configPath), "backups")
 	}
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err != nil {
 		return filepath.Join(".harnessctl", "backups")
 	}

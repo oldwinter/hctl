@@ -9,7 +9,7 @@ import (
 )
 
 func TestReadHomeA(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-a"))
+	snap, err := (Adapter{}).Read(testutil.Testdata(t, "home-a"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestReadHomeA(t *testing.T) {
 }
 
 func TestMissingConfig(t *testing.T) {
-	snap, err := Adapter{}.Read(t.TempDir())
+	snap, err := (Adapter{}).Read(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

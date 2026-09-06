@@ -1,23 +1,31 @@
 package testutil
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 // CopyTree copies src directory into a new temp dir and returns that dir.
 func CopyTree(t *testing.T, src string) string {
 	t.Helper()
-	dest := t.TempDir()
+	dest, err := copyTree(src, t.TempDir())
+	if err != nil {
+		panic(err)
+	}
+	return dest
+}
+
+func copyTree(src, dest string) (string, error) {
+	src = filepath.Clean(src)
 	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		rel, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
+		rel := strings.TrimPrefix(path, src)
+		rel = strings.TrimPrefix(rel, string(os.PathSeparator))
 		target := filepath.Join(dest, rel)
 		if info.IsDir() {
 			return os.MkdirAll(target, 0o755)
@@ -26,28 +34,33 @@ func CopyTree(t *testing.T, src string) string {
 		if err != nil {
 			return err
 		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
 			return err
 		}
 		return os.WriteFile(target, data, info.Mode())
 	})
 	if err != nil {
-		t.Fatal(err)
+		return "", err
 	}
-	return dest
+	return dest, nil
 }
 
 // RepoRoot walks up from the test working directory to the module root.
 func RepoRoot(t *testing.T) string {
 	t.Helper()
-	wd, err := os.Getwd()
+	wd, _ := os.Getwd()
+	root, err := findRepoRoot(wd)
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
+	return root
+}
+
+func findRepoRoot(wd string) (string, error) {
 	dir := wd
 	for i := 0; i < 8; i++ {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
+			return dir, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -55,8 +68,7 @@ func RepoRoot(t *testing.T) string {
 		}
 		dir = parent
 	}
-	t.Fatal("go.mod not found from " + wd)
-	return ""
+	return "", fmt.Errorf("go.mod not found from %s", wd)
 }
 
 func Testdata(t *testing.T, elem ...string) string {

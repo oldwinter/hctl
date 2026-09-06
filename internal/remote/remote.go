@@ -9,6 +9,9 @@ import (
 	"github.com/oldwinter/hctl/internal/fsx"
 )
 
+// userHomeDir is overridden in tests.
+var userHomeDir = os.UserHomeDir
+
 // Dial opens a filesystem for a context. Tests may replace this.
 var Dial = DefaultDial
 
@@ -29,7 +32,7 @@ func DefaultDial(nc config.NamedContext, homeFlag string) (fsx.FS, string, error
 		if ctx.Home != "" {
 			return fsx.Local{}, expand(ctx.Home), nil
 		}
-		home, err := os.UserHomeDir()
+		home, err := userHomeDir()
 		return fsx.Local{}, home, err
 	}
 	if os.Getenv("HARNESSCTL_SSH") == "0" {
@@ -53,7 +56,7 @@ func DefaultDial(nc config.NamedContext, homeFlag string) (fsx.FS, string, error
 
 func expand(p string) string {
 	if strings.HasPrefix(p, "~/") {
-		if home, err := os.UserHomeDir(); err == nil {
+		if home, err := userHomeDir(); err == nil {
 			return strings.Replace(p, "~", home, 1)
 		}
 	}

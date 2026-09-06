@@ -54,6 +54,10 @@ func Set(src []byte, format Format, path []string, value string) ([]byte, error)
 
 // SetJSON unmarshals an object, sets a nested string, and re-indents.
 func SetJSON(src []byte, path []string, value string) ([]byte, error) {
+	return SetJSONHook(src, path, value)
+}
+
+func setJSONImpl(src []byte, path []string, value string) ([]byte, error) {
 	var root any
 	if len(bytes.TrimSpace(src)) == 0 {
 		root = map[string]any{}
@@ -68,6 +72,10 @@ func SetJSON(src []byte, path []string, value string) ([]byte, error) {
 
 // SetJSONC strips comments then writes JSON.
 func SetJSONC(src []byte, path []string, value string) ([]byte, error) {
+	return SetJSONCHook(src, path, value)
+}
+
+func setJSONCImpl(src []byte, path []string, value string) ([]byte, error) {
 	cleaned := src
 	if len(bytes.TrimSpace(src)) > 0 {
 		var err error
@@ -76,7 +84,7 @@ func SetJSONC(src []byte, path []string, value string) ([]byte, error) {
 			return nil, err
 		}
 	}
-	return SetJSON(cleaned, path, value)
+	return setJSONImpl(cleaned, path, value)
 }
 
 func setMapPath(root *any, path []string, value string) error {
@@ -111,6 +119,10 @@ func setMapPath(root *any, path []string, value string) error {
 
 // SetYAML sets a mapping path using yaml.Node (comments on other keys kept).
 func SetYAML(src []byte, path []string, value string) ([]byte, error) {
+	return SetYAMLHook(src, path, value)
+}
+
+func setYAMLImpl(src []byte, path []string, value string) ([]byte, error) {
 	var doc yaml.Node
 	if len(bytes.TrimSpace(src)) == 0 {
 		src = []byte("{}\n")
@@ -171,6 +183,10 @@ func setYAMLNode(n *yaml.Node, path []string, value string) error {
 
 // SetDotEnv sets KEY=value, preserving other lines and comments.
 func SetDotEnv(src []byte, key, value string) ([]byte, error) {
+	return SetDotEnvHook(src, key, value)
+}
+
+func setDotEnvImpl(src []byte, key, value string) ([]byte, error) {
 	lines := splitKeep(src)
 	found := false
 	for i, line := range lines {
@@ -215,6 +231,10 @@ func splitKeep(src []byte) []string {
 // SetTOML updates a key, keeping comments and unrelated tables.
 // path is [table..., key]. A one-element path is a top-level key.
 func SetTOML(src []byte, path []string, value string) ([]byte, error) {
+	return SetTOMLHook(src, path, value)
+}
+
+func setTOMLImpl(src []byte, path []string, value string) ([]byte, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("edit: empty toml path")
 	}

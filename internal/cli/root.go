@@ -36,7 +36,12 @@ func (o *options) resolveHomeEnv() {
 	}
 }
 
+var loadConfigOverride func(*options) (*config.File, error)
+
 func (o *options) loadConfig() (*config.File, error) {
+	if loadConfigOverride != nil {
+		return loadConfigOverride(o)
+	}
 	return config.Load(o.configPath)
 }
 

@@ -10,6 +10,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// userHomeDir is overridden in tests.
+var userHomeDir = os.UserHomeDir
+var yamlMarshal = yaml.Marshal
+var saveOverride func(string, *File) error
+
+// SetSaveOverride is for tests.
+func SetSaveOverride(fn func(string, *File) error) { saveOverride = fn }
+
 const (
 	APIVersion = "harnessctl/v1"
 	KindConfig = "Config"
@@ -73,7 +81,7 @@ func DefaultPath() string {
 	if p := strings.TrimSpace(os.Getenv("HARNESSCTL_CONFIG")); p != "" {
 		return p
 	}
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err != nil {
 		return filepath.Join(".harnessctl", "config.yaml")
 	}
@@ -119,10 +127,13 @@ func Load(path string) (*File, error) {
 
 // Save writes f with 0600 perms, creating the parent directory as 0700.
 func Save(path string, f *File) error {
+	if saveOverride != nil {
+		return saveOverride(path, f)
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	data, err := yaml.Marshal(f)
+	data, err := yamlMarshal(f)
 	if err != nil {
 		return err
 	}
@@ -175,7 +186,7 @@ func (f *File) ResolveHome(name, homeFlag string) (NamedContext, string, error) 
 	if nc.Context.Home != "" {
 		return nc, expandHome(nc.Context.Home), nil
 	}
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err != nil {
 		return nc, "", err
 	}
@@ -184,7 +195,7 @@ func (f *File) ResolveHome(name, homeFlag string) (NamedContext, string, error) 
 
 func expandHome(p string) string {
 	if strings.HasPrefix(p, "~/") {
-		if home, err := os.UserHomeDir(); err == nil {
+		if home, err := userHomeDir(); err == nil {
 			return filepath.Join(home, p[2:])
 		}
 	}

@@ -69,8 +69,15 @@ func ExistsAny(fsys FS, name string) bool {
 	return err == nil
 }
 
+// AtomicWriteHook is overridden in tests.
+var AtomicWriteHook = atomicWriteImpl
+
 // AtomicWrite writes via a sibling temp file then rename.
 func AtomicWrite(fsys FS, name string, data []byte, perm os.FileMode) error {
+	return AtomicWriteHook(fsys, name, data, perm)
+}
+
+func atomicWriteImpl(fsys FS, name string, data []byte, perm os.FileMode) error {
 	if err := fsys.MkdirAll(dirOf(fsys, name), 0o700); err != nil {
 		return err
 	}

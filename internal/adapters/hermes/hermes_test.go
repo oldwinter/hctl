@@ -9,7 +9,7 @@ import (
 )
 
 func TestReadHomeA(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-a"))
+	snap, err := (Adapter{}).Read(testutil.Testdata(t, "home-a"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestReadHomeA(t *testing.T) {
 }
 
 func TestEmptyModelOnboarding(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-b"))
+	snap, err := (Adapter{}).Read(testutil.Testdata(t, "home-b"))
 	if err != nil {
 		t.Fatal(err)
 	}
