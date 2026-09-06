@@ -10,7 +10,11 @@ import (
 )
 
 // Version is the CLI version string. Override via -ldflags.
-var Version = "0.1.0"
+var (
+	Version = "0.2.0"
+	Commit  = "unknown"
+	Date    = "unknown"
+)
 
 type options struct {
 	jsonOut     bool
@@ -59,8 +63,9 @@ func NewRoot() *cobra.Command {
 		Use:   use,
 		Short: "kubectl-style control plane for AI coding-agent harnesses",
 		Long: `harnessctl inventories coding-agent harness configs (Codex, Claude Code,
-Grok Build, Hermes, OpenCode, …) across machines — without dispatching agents
-or writing those configs (v0.1 is read-only).
+Grok Build, Hermes, OpenCode, …) across machines — without dispatching agents.
+
+Read, set, apply, and later sync harness configs. Secrets are never printed.
 
 Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 		SilenceUsage:  true,
@@ -80,6 +85,7 @@ Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 	root.AddCommand(newDescribeCmd(opts))
 	root.AddCommand(newDoctorCmd(opts))
 	root.AddCommand(newDiffCmd(opts))
+	root.AddCommand(newSetCmd(opts))
 	return root
 }
 

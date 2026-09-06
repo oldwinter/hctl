@@ -1,13 +1,11 @@
 package stub
 
 import (
-	"os"
-	"path/filepath"
-
+	"github.com/oldwinter/harnessctl/internal/fsx"
 	"github.com/oldwinter/harnessctl/internal/model"
 )
 
-// Adapter is a read-only placeholder for harnesses without a v0.1 parser.
+// Adapter is a read-only placeholder for harnesses without a dedicated parser.
 type Adapter struct {
 	name     string
 	bins     []string
@@ -24,12 +22,16 @@ func (a Adapter) BinaryNames() []string    { return a.bins }
 func (a Adapter) ConfigRelPaths() []string { return a.relPaths }
 
 func (a Adapter) Read(home string) (model.Snapshot, error) {
+	return a.ReadFS(fsx.Local{}, home)
+}
+
+func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
 	var paths []string
 	found := false
 	for _, rel := range a.relPaths {
-		p := filepath.Join(home, rel)
+		p := fsys.Join(home, rel)
 		paths = append(paths, p)
-		if _, err := os.Stat(p); err == nil {
+		if fsx.ExistsAny(fsys, p) {
 			found = true
 		}
 	}

@@ -1,24 +1,24 @@
 package grok
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
 
+	"github.com/oldwinter/harnessctl/internal/edit"
+	"github.com/oldwinter/harnessctl/internal/fsx"
 	"github.com/oldwinter/harnessctl/internal/model"
 	"github.com/oldwinter/harnessctl/internal/secret"
 )
 
-// Adapter reads ~/.grok/config.toml.
+// Adapter reads and writes ~/.grok/config.toml.
 type Adapter struct{}
 
 func (Adapter) Name() string          { return "grok" }
 func (Adapter) Aliases() []string     { return []string{"grok-build"} }
 func (Adapter) BinaryNames() []string { return []string{"grok"} }
 func (Adapter) ConfigRelPaths() []string {
-	return []string{filepath.Join(".grok", "config.toml")}
+	return []string{".grok/config.toml"}
 }
 
 type file struct {
@@ -36,14 +36,15 @@ type modelSection struct {
 }
 
 func (a Adapter) Read(home string) (model.Snapshot, error) {
-	path := filepath.Join(home, ".grok", "config.toml")
-	snap := model.Snapshot{
-		Name:        a.Name(),
-		ConfigPaths: []string{path},
-	}
-	data, err := os.ReadFile(path)
+	return a.ReadFS(fsx.Local{}, home)
+}
+
+func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+	path := fsys.Join(home, ".grok", "config.toml")
+	snap := model.Snapshot{Name: a.Name(), ConfigPaths: []string{path}}
+	data, err := fsys.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if fsx.IsNotExist(err) {
 			return snap, nil
 		}
 		return snap, err
@@ -56,17 +57,9 @@ func (a Adapter) Read(home string) (model.Snapshot, error) {
 	}
 	def := stringFromMap(cfg.Models, "default")
 	snap.DefaultModel = def
-	if def != "" {
+	if def != "" && cfg.Model != nil {
 		if sec, ok := cfg.Model[def]; ok {
 			applyModel(&snap, sec)
-		} else {
-			// quoted keys like grok-4.6 should already match; try raw lookup
-			for name, sec := range cfg.Model {
-				if name == def {
-					applyModel(&snap, sec)
-					break
-				}
-			}
 		}
 	}
 	if snap.Provider == "" {
@@ -122,4 +115,81 @@ func firstEnvKey(v any) string {
 		}
 	}
 	return ""
+}
+
+func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
+	path := fsys.Join(home, ".grok", "config.toml")
+	data, err := fsx.ReadMaybe(fsys, path)
+	if err != nil {
+		return nil, err
+	}
+	if d.Model != "" {
+		data, err = edit.SetTOML(data, []string{"models", "default"}, d.Model)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if d.SecretRef != "" {
+		snap, _ := a.ReadFS(fsys, home)
+		name := d.Model
+		if name == "" {
+			name = snap.DefaultModel
+		}
+		if name == "" {
+			name = "default"
+		}
+		data, err = edit.SetTOML(data, []string{"model", name, "env_key"}, d.SecretRef)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// provider is inferred from host; stored only as a note via no-op
+	if err := fsx.AtomicWrite(fsys, path, data, 0o600); err != nil {
+		return nil, err
+	}
+	return []string{path}, nil
+}
+
+func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err error) {
+	path := fsys.Join(home, ".grok", "config.toml")
+	data, err := fsx.ReadMaybe(fsys, path)
+	if err != nil || len(data) == 0 {
+		return "", "", err
+	}
+	var cfg file
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return "", "", err
+	}
+	def := stringFromMap(cfg.Models, "default")
+	if def == "" || cfg.Model == nil {
+		return "", "", nil
+	}
+	sec := cfg.Model[def]
+	return firstEnvKey(sec.EnvKey), sec.APIKey, nil
+}
+
+func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
+	path := fsys.Join(home, ".grok", "config.toml")
+	data, err := fsx.ReadMaybe(fsys, path)
+	if err != nil {
+		return err
+	}
+	snap, _ := a.ReadFS(fsys, home)
+	name := snap.DefaultModel
+	if name == "" {
+		name = "default"
+	}
+	if value != "" {
+		data, err = edit.SetTOML(data, []string{"model", name, "api_key"}, value)
+		if err != nil {
+			return err
+		}
+	}
+	if ref != "" {
+		data, err = edit.SetTOML(data, []string{"model", name, "env_key"}, ref)
+		if err != nil {
+			return err
+		}
+	}
+	return fsx.AtomicWrite(fsys, path, data, 0o600)
 }

@@ -1,23 +1,22 @@
 package codex
 
 import (
-	"os"
-	"path/filepath"
+	"github.com/pelletier/go-toml/v2"
 
-	toml "github.com/pelletier/go-toml/v2"
-
+	"github.com/oldwinter/harnessctl/internal/edit"
+	"github.com/oldwinter/harnessctl/internal/fsx"
 	"github.com/oldwinter/harnessctl/internal/model"
 	"github.com/oldwinter/harnessctl/internal/secret"
 )
 
-// Adapter reads ~/.codex/config.toml.
+// Adapter reads and writes ~/.codex/config.toml.
 type Adapter struct{}
 
 func (Adapter) Name() string          { return "codex" }
 func (Adapter) Aliases() []string     { return []string{"openai-codex"} }
 func (Adapter) BinaryNames() []string { return []string{"codex"} }
 func (Adapter) ConfigRelPaths() []string {
-	return []string{filepath.Join(".codex", "config.toml")}
+	return []string{".codex/config.toml"}
 }
 
 type file struct {
@@ -36,14 +35,15 @@ type provider struct {
 }
 
 func (a Adapter) Read(home string) (model.Snapshot, error) {
-	path := filepath.Join(home, ".codex", "config.toml")
-	snap := model.Snapshot{
-		Name:        a.Name(),
-		ConfigPaths: []string{path},
-	}
-	data, err := os.ReadFile(path)
+	return a.ReadFS(fsx.Local{}, home)
+}
+
+func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+	path := fsys.Join(home, ".codex", "config.toml")
+	snap := model.Snapshot{Name: a.Name(), ConfigPaths: []string{path}}
+	data, err := fsys.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if fsx.IsNotExist(err) {
 			return snap, nil
 		}
 		return snap, err
@@ -57,7 +57,6 @@ func (a Adapter) Read(home string) (model.Snapshot, error) {
 	snap.DefaultModel = cfg.Model
 	snap.Provider = cfg.ModelProvider
 	snap.Effort = cfg.ModelReasoningEffort
-
 	if cfg.ModelProvider != "" && cfg.ModelProviders != nil {
 		if p, ok := cfg.ModelProviders[cfg.ModelProvider]; ok {
 			applyProvider(&snap, p)
@@ -82,8 +81,86 @@ func applyProvider(snap *model.Snapshot, p provider) {
 	}
 	if p.EnvKey != "" {
 		snap.SecretRef = p.EnvKey
-		if !snap.SecretPresent {
-			snap.SecretPresent = false
+	}
+}
+
+func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
+	path := fsys.Join(home, ".codex", "config.toml")
+	data, err := fsx.ReadMaybe(fsys, path)
+	if err != nil {
+		return nil, err
+	}
+	if d.Model != "" {
+		data, err = edit.SetTOML(data, []string{"model"}, d.Model)
+		if err != nil {
+			return nil, err
 		}
 	}
+	if d.Provider != "" {
+		data, err = edit.SetTOML(data, []string{"model_provider"}, d.Provider)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if d.SecretRef != "" {
+		prov := d.Provider
+		if prov == "" {
+			snap, _ := a.ReadFS(fsys, home)
+			prov = snap.Provider
+		}
+		if prov == "" {
+			prov = "custom"
+		}
+		data, err = edit.SetTOML(data, []string{"model_providers", prov, "env_key"}, d.SecretRef)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := fsx.AtomicWrite(fsys, path, data, 0o600); err != nil {
+		return nil, err
+	}
+	return []string{path}, nil
+}
+
+func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err error) {
+	path := fsys.Join(home, ".codex", "config.toml")
+	data, err := fsx.ReadMaybe(fsys, path)
+	if err != nil || len(data) == 0 {
+		return "", "", err
+	}
+	var cfg file
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return "", "", err
+	}
+	if cfg.ModelProviders == nil {
+		return "", "", nil
+	}
+	p := cfg.ModelProviders[cfg.ModelProvider]
+	return p.EnvKey, p.ExperimentalBearerToken, nil
+}
+
+func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
+	path := fsys.Join(home, ".codex", "config.toml")
+	data, err := fsx.ReadMaybe(fsys, path)
+	if err != nil {
+		return err
+	}
+	snap, _ := a.ReadFS(fsys, home)
+	prov := snap.Provider
+	if prov == "" || prov == "openai" {
+		prov = "custom"
+	}
+	if value != "" {
+		data, err = edit.SetTOML(data, []string{"model_providers", prov, "experimental_bearer_token"}, value)
+		if err != nil {
+			return err
+		}
+	}
+	if ref != "" {
+		data, err = edit.SetTOML(data, []string{"model_providers", prov, "env_key"}, ref)
+		if err != nil {
+			return err
+		}
+	}
+	return fsx.AtomicWrite(fsys, path, data, 0o600)
 }

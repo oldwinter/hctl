@@ -26,7 +26,7 @@ func TestVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "harnessctl version 0.1.0") {
+	if !strings.Contains(out, "harnessctl version "+Version) {
 		t.Fatal(out)
 	}
 }
@@ -137,6 +137,40 @@ func TestConfigContextsAndUse(t *testing.T) {
 		t.Fatal(err)
 	}
 	if strings.TrimSpace(out) != "box" {
+		t.Fatal(out)
+	}
+}
+
+func TestSetModelRoundTrip(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	bak := t.TempDir()
+	t.Setenv("HARNESSCTL_BACKUP_DIR", bak)
+	out, err := run(t, "--home", home, "--config", cfg, "set", "model", "codex", "o4-mini", "--dry-run")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "dry-run") || !strings.Contains(out, "o4-mini") {
+		t.Fatal(out)
+	}
+	if strings.Contains(out, "sk-test") {
+		t.Fatal("leaked")
+	}
+	out, err = run(t, "--home", home, "--config", cfg, "set", "model", "codex", "o4-mini")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "verified") {
+		t.Fatal(out)
+	}
+	out, err = run(t, "--home", home, "--config", cfg, "describe", "harness", "codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "o4-mini") {
+		t.Fatal(out)
+	}
+	if strings.Contains(out, "sk-test") {
 		t.Fatal(out)
 	}
 }

@@ -34,3 +34,4 @@ smoke: build
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml doctor
 	{{binary}} --config testdata/harnessctl.yaml diff harness codex --home-a testdata/home-a --home-b testdata/home-b
 	{{binary}} --config testdata/harnessctl.yaml config get-contexts
+	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml set model codex o4-mini --dry-run

@@ -167,3 +167,28 @@ func empty(v string) string {
 	}
 	return v
 }
+
+// ApplyReport prints a set/apply/sync summary.
+func ApplyReport(w io.Writer, r model.ApplyReport) error {
+	var b strings.Builder
+	if r.DryRun {
+		fmt.Fprintln(&b, "dry-run: no files written")
+	} else if r.Verified {
+		fmt.Fprintln(&b, "verified: ok")
+	}
+	if len(r.Changes) == 0 {
+		fmt.Fprintln(&b, "no changes")
+	} else {
+		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(tw, "HARNESS\tFIELD\tFROM\tTO\tPATH")
+		for _, c := range r.Changes {
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", c.Harness, c.Field, empty(c.From), empty(c.To), dash(c.Path))
+		}
+		_ = tw.Flush()
+	}
+	for _, bak := range r.Backups {
+		fmt.Fprintf(&b, "backup: %s\n", bak)
+	}
+	_, err := io.WriteString(w, secret.Redact(b.String()))
+	return err
+}

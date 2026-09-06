@@ -2,8 +2,6 @@ package adapters
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/oldwinter/harnessctl/internal/adapters/claude"
@@ -12,6 +10,7 @@ import (
 	"github.com/oldwinter/harnessctl/internal/adapters/hermes"
 	"github.com/oldwinter/harnessctl/internal/adapters/opencode"
 	"github.com/oldwinter/harnessctl/internal/adapters/stub"
+	"github.com/oldwinter/harnessctl/internal/fsx"
 	"github.com/oldwinter/harnessctl/internal/model"
 )
 
@@ -24,6 +23,11 @@ type Adapter interface {
 	Read(home string) (model.Snapshot, error)
 }
 
+// FSReader reads via an abstract filesystem (local or SSH).
+type FSReader interface {
+	ReadFS(fsys fsx.FS, home string) (model.Snapshot, error)
+}
+
 // All returns adapters in display order.
 func All() []Adapter {
 	return []Adapter{
@@ -32,8 +36,8 @@ func All() []Adapter {
 		grok.Adapter{},
 		hermes.Adapter{},
 		opencode.Adapter{},
-		stub.New("pi", []string{"pi"}, []string{".pi", ".config/pi"}),
-		stub.New("droid", []string{"droid"}, []string{".droid", ".factory"}),
+		stub.New("pi", []string{"pi"}, []string{".pi/agent", ".pi"}),
+		stub.New("droid", []string{"droid"}, []string{".factory", ".droid"}),
 		stub.New("cursor-agent", []string{"cursor-agent", "cursor"}, []string{".cursor"}),
 	}
 }
@@ -54,15 +58,27 @@ func ByName(name string) (Adapter, error) {
 	return nil, fmt.Errorf("unknown harness %q", name)
 }
 
-// Scan reads every adapter under home.
+// Names returns official harness names.
+func Names() []string {
+	var out []string
+	for _, a := range All() {
+		out = append(out, a.Name())
+	}
+	return out
+}
+
 func Scan(home string) ([]model.Snapshot, error) {
+	return ScanFS(fsx.Local{}, home)
+}
+
+func ScanFS(fsys fsx.FS, home string) ([]model.Snapshot, error) {
 	home = strings.TrimSpace(home)
 	if home == "" {
 		return nil, fmt.Errorf("home is empty")
 	}
 	var out []model.Snapshot
 	for _, a := range All() {
-		snap, err := ReadOne(a, home)
+		snap, err := ReadOneFS(a, fsys, home)
 		if err != nil {
 			return nil, err
 		}
@@ -71,9 +87,20 @@ func Scan(home string) ([]model.Snapshot, error) {
 	return out, nil
 }
 
-// ReadOne fills install metadata then delegates to the adapter parser.
 func ReadOne(a Adapter, home string) (model.Snapshot, error) {
-	snap, err := a.Read(home)
+	return ReadOneFS(a, fsx.Local{}, home)
+}
+
+func ReadOneFS(a Adapter, fsys fsx.FS, home string) (model.Snapshot, error) {
+	var (
+		snap model.Snapshot
+		err  error
+	)
+	if r, ok := a.(FSReader); ok {
+		snap, err = r.ReadFS(fsys, home)
+	} else {
+		snap, err = a.Read(home)
+	}
 	if err != nil {
 		return model.Snapshot{}, err
 	}
@@ -83,25 +110,21 @@ func ReadOne(a Adapter, home string) (model.Snapshot, error) {
 	path, ver, ok := DetectBinary(a.BinaryNames())
 	snap.Installed = ok
 	snap.InstalledPath = path
-	snap.Version = ver
-
+	if snap.Version == "" {
+		snap.Version = ver
+	}
 	if len(snap.ConfigPaths) == 0 {
 		for _, rel := range a.ConfigRelPaths() {
-			snap.ConfigPaths = append(snap.ConfigPaths, filepath.Join(home, rel))
+			snap.ConfigPaths = append(snap.ConfigPaths, fsys.Join(home, rel))
 		}
 	}
 	if !snap.ConfigFound {
 		for _, p := range snap.ConfigPaths {
-			if fileExists(p) {
+			if fsx.Exists(fsys, p) {
 				snap.ConfigFound = true
 				break
 			}
 		}
 	}
 	return snap, nil
-}
-
-func fileExists(p string) bool {
-	st, err := os.Stat(p)
-	return err == nil && !st.IsDir()
 }

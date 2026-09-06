@@ -52,6 +52,52 @@ func dash(v string) string {
 	return v
 }
 
+// Desired is a write intent (never includes plaintext secrets).
+type Desired struct {
+	Model     string `json:"model,omitempty" toml:"model,omitempty" yaml:"model,omitempty"`
+	Provider  string `json:"provider,omitempty" toml:"provider,omitempty" yaml:"provider,omitempty"`
+	SecretRef string `json:"secretRef,omitempty" toml:"secretRef,omitempty" yaml:"secretRef,omitempty"`
+}
+
+// Empty reports whether any write field is set.
+func (d Desired) Empty() bool {
+	return d.Model == "" && d.Provider == "" && d.SecretRef == ""
+}
+
+// DesiredFile is the apply/diff -f document.
+type DesiredFile struct {
+	APIVersion string             `json:"apiVersion" toml:"apiVersion" yaml:"apiVersion"`
+	Kind       string             `json:"kind,omitempty" toml:"kind,omitempty" yaml:"kind,omitempty"`
+	Harnesses  map[string]Desired `json:"harnesses" toml:"harnesses" yaml:"harnesses"`
+}
+
+// Change is one field mutation (from → to), safe to print.
+type Change struct {
+	Harness string `json:"harness"`
+	Field   string `json:"field"`
+	From    string `json:"from"`
+	To      string `json:"to"`
+	Path    string `json:"path,omitempty"`
+}
+
+// ApplyReport is the JSON schema for set/apply/sync.
+type ApplyReport struct {
+	DryRun   bool     `json:"dryRun"`
+	Changes  []Change `json:"changes"`
+	Backups  []string `json:"backups,omitempty"`
+	Verified bool     `json:"verified,omitempty"`
+}
+
+// SecretCopy is a sync secret transfer record (fingerprints only).
+type SecretCopy struct {
+	Harness string `json:"harness"`
+	From    string `json:"fromFingerprint,omitempty"`
+	To      string `json:"toFingerprint,omitempty"`
+	Ref     string `json:"secretRef,omitempty"`
+	Copied  bool   `json:"copied"`
+	Action  string `json:"action"`
+}
+
 // DoctorCheck is one row of `harnessctl doctor`.
 type DoctorCheck struct {
 	Name       string `json:"name"`
@@ -59,6 +105,7 @@ type DoctorCheck struct {
 	Config     string `json:"config"`
 	Key        string `json:"key"`
 	Onboarding string `json:"onboarding"`
+	Drift      string `json:"drift,omitempty"`
 	Message    string `json:"message,omitempty"`
 }
 
