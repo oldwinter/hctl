@@ -24,8 +24,9 @@ func newSetCmd(opts *options) *cobra.Command {
   hctl set model codex o4-mini
   hctl set provider hermes custom
 
-Writes are atomic (temp + rename). The previous file is copied to
-~/.harnessctl/backups/<harness>-<timestamp>.bak (or $HARNESSCTL_BACKUP_DIR).
+Writes are atomic (temp + rename). Previous files are copied to unique,
+source-identifying .bak files under ~/.harnessctl/backups/ (or
+$HARNESSCTL_BACKUP_DIR).
 After write the snapshot is re-read and must match the intent.
 
 set provider is unsupported for claude (implicit anthropic) and grok
@@ -61,6 +62,7 @@ format-preservation caveats (JSONC comments are dropped).`,
 				BackupDir: mutate.DefaultBackupDir(opts.configPath),
 				Desired:   d,
 				DryRun:    dryRun,
+				Ownership: opts.ownershipOptions(),
 			})
 			if err != nil {
 				return err
@@ -91,6 +93,9 @@ func (o *options) openNamed(cfg *config.File, name string) (string, fsx.FS, stri
 	fsys, home, err := remote.Dial(nc, o.home)
 	if err != nil {
 		return "", nil, "", err
+	}
+	if o.noProbe {
+		fsys = fsx.WithoutCommandProbes(fsys)
 	}
 	return name, fsys, home, nil
 }

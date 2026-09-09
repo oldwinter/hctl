@@ -27,6 +27,10 @@ type cliConfig struct {
 	Provider string `json:"provider"`
 }
 
+type commandProbePolicy interface {
+	CommandProbesAllowed() bool
+}
+
 func (a Adapter) Read(home string) (model.Snapshot, error) {
 	return a.ReadFS(fsx.Local{}, home)
 }
@@ -49,7 +53,11 @@ func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
 	}
 	snap.DefaultModel = cfg.Model
 	snap.Provider = cfg.Provider
-	if _, local := fsys.(fsx.Local); local {
+	allowProbe := true
+	if policy, ok := fsys.(commandProbePolicy); ok {
+		allowProbe = policy.CommandProbesAllowed()
+	}
+	if _, local := fsys.(fsx.Local); local && allowProbe {
 		if logged, note := probeLogin(); note != "" {
 			snap.Notes = append(snap.Notes, note)
 			if !logged {

@@ -1,6 +1,14 @@
 {
-  "model": "gpt-4.1",
-  "provider": "factory",
-  "baseURL": "https://llm.box.example/v1",
-  "apiKey": "sk-test-bbb"
+  "sessionDefaultSettings": {
+    "model": "custom:gpt-4.1-0"
+  },
+  "customModels": [
+    {
+      "id": "custom:gpt-4.1-0",
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "baseUrl": "https://llm.box.example/v1",
+      "apiKey": "sk-test-bbb"
+    }
+  ]
 }

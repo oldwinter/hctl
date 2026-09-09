@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"sort"
+
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/hctl/internal/adapters"
@@ -37,8 +39,14 @@ func newApplyCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			rep := model.ApplyReport{DryRun: dryRun}
-			for name, d := range want.Harnesses {
+			names := make([]string, 0, len(want.Harnesses))
+			for name := range want.Harnesses {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			plans := make([]mutate.Plan, 0, len(names))
+			for _, name := range names {
+				d := want.Harnesses[name]
 				if d.Empty() {
 					continue
 				}
@@ -46,14 +54,23 @@ func newApplyCmd(opts *options) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				one, err := mutate.Apply(mutate.Request{
+				plan, err := mutate.Preflight(mutate.Request{
 					Adapter:   ad,
 					FS:        fsys,
 					Home:      home,
 					BackupDir: mutate.DefaultBackupDir(opts.configPath),
 					Desired:   d,
 					DryRun:    dryRun,
+					Ownership: opts.ownershipOptions(),
 				})
+				if err != nil {
+					return err
+				}
+				plans = append(plans, plan)
+			}
+			rep := model.ApplyReport{DryRun: dryRun}
+			for _, plan := range plans {
+				one, err := mutate.ApplyPrepared(plan)
 				if err != nil {
 					return err
 				}

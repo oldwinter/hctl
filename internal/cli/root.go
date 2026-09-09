@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/hctl/internal/config"
+	"github.com/oldwinter/hctl/internal/ownership"
 )
 
 // Version is the CLI version string. Override via -ldflags.
@@ -17,11 +18,14 @@ var (
 )
 
 type options struct {
-	jsonOut     bool
-	output      string
-	home        string
-	configPath  string
-	contextName string
+	jsonOut           bool
+	output            string
+	home              string
+	configPath        string
+	contextName       string
+	allowManaged      bool
+	ownershipManifest string
+	noProbe           bool
 }
 
 func (o *options) resolveHomeEnv() {
@@ -81,6 +85,9 @@ Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 	root.PersistentFlags().StringVar(&opts.home, "home", "", "override user home used to locate harness configs (also HARNESSCTL_HOME for compatibility)")
 	root.PersistentFlags().StringVar(&opts.configPath, "config", "", "path to hctl kubeconfig-like file (default ~/.harnessctl/config.yaml; also HARNESSCTL_CONFIG for compatibility)")
 	root.PersistentFlags().StringVar(&opts.contextName, "context", "", "context to use for this command (overrides current-context)")
+	root.PersistentFlags().BoolVar(&opts.allowManaged, "allow-managed", false, "allow a temporary write to dotfiles-managed harness destinations")
+	root.PersistentFlags().StringVar(&opts.ownershipManifest, "ownership-manifest", "", "target manifest path (absolute or ~/; overrides ownership pointer discovery)")
+	root.PersistentFlags().BoolVar(&opts.noProbe, "no-probe", false, "inspect config without version or login subprocess probes")
 
 	root.AddCommand(newVersionCmd())
 	root.AddCommand(newConfigCmd(opts))
@@ -93,6 +100,10 @@ Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 	root.AddCommand(newSyncCmd(opts))
 	root.AddCommand(newCompletionCmd())
 	return root
+}
+
+func (o *options) ownershipOptions() ownership.Options {
+	return ownership.Options{Manifest: o.ownershipManifest, AllowManaged: o.allowManaged}
 }
 
 func writeErr(cmd *cobra.Command, err error) error {

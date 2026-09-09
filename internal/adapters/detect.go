@@ -15,6 +15,10 @@ type pathLooker interface {
 	LookPath(name string) (string, error)
 }
 
+type commandProbePolicy interface {
+	CommandProbesAllowed() bool
+}
+
 // DetectBinary looks up the first name on the local PATH and optionally probes a version.
 func DetectBinary(names []string) (path string, version string, ok bool) {
 	return DetectBinaryFS(fsx.Local{}, names)
@@ -25,6 +29,10 @@ func DetectBinary(names []string) (path string, version string, ok bool) {
 func DetectBinaryFS(fsys fsx.FS, names []string) (path string, version string, ok bool) {
 	lp, hasLP := fsys.(pathLooker)
 	_, remote := fsys.(fsx.SSH)
+	allowCommandProbes := !remote
+	if policy, ok := fsys.(commandProbePolicy); ok {
+		allowCommandProbes = policy.CommandProbesAllowed()
+	}
 	if !hasLP {
 		return "", "", false
 	}
@@ -34,7 +42,7 @@ func DetectBinaryFS(fsys fsx.FS, names []string) (path string, version string, o
 			continue
 		}
 		ver := ""
-		if !remote {
+		if allowCommandProbes {
 			ver = ProbeVersion(p)
 		}
 		return p, ver, true

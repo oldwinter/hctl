@@ -61,6 +61,7 @@ Homebrew tap 不在 1.0 范围。
 hctl version
 hctl config get-contexts
 hctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses
+hctl --no-probe --home testdata/home-a --config testdata/harnessctl.yaml --json get harnesses
 hctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses -o wide
 hctl --home testdata/home-a --config testdata/harnessctl.yaml --json get models
 ```
@@ -129,9 +130,29 @@ hctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
 
 `--fields secret` 会把 bearer **字节**拷到对端（SSH 管道，不写日志），屏幕上只出现指纹。能用 `secret-ref`（环境变量名）就不要拷密钥。
 
+`--no-probe` 保留本地 `PATH` / SSH `command -v` 安装检测和配置文件读取，但跳过本地 `--version` 与 `cursor-agent status` 子进程。它适合离线 inventory / observation；普通命令默认行为不变。
+
 **`set provider` 诚实行为：** Claude 的供应商是隐式 anthropic，Grok 从 `base_url` 推断，二者**不写 provider 字段**。对这些 harness 执行 `set provider`（含 `--dry-run`）会立刻返回用法错误，而不是静默成功后再在 verify 里失败。
 
-写入是「备份 → 临时文件 → rename → 再读校验」。备份：`~/.harnessctl/backups/<harness>-<timestamp>.bak`。
+### dotfiles ownership
+
+`set`、`apply`、`sync`（包括 `secret`）写入前会在**目标 context 的文件系统**中按以下顺序查 ownership：
+
+1. `--ownership-manifest ABSOLUTE_OR_~/PATH`；
+2. `~/.config/harness/ownership.json` 指向的 canonical manifest；
+3. 仅当 pointer 不存在时，回退到 `~/dotfiles/harness/manifest.json`。
+
+pointer 格式固定为：
+
+```json
+{"version":1,"owner":"oldwinter/dotfiles","manifest":"/absolute/path/to/manifest.json"}
+```
+
+manifest 使用 `version: 1` 和 `units[].dest`；每个 destination 必须是无 traversal 的 canonical `~/...` 路径。pointer、显式 manifest 或其内容只要存在但无效，就会 fail closed，`--dry-run` 与 `--allow-managed` 也不会绕过无效 ownership 配置。pointer 与 conventional manifest 都不存在时，目标按 standalone 处理。
+
+只要某 adapter 的任一 `ConfigRelPaths` 被 manifest 管理，整个 adapter 的写入都会保守拒绝。`--allow-managed` 只临时绕过已经确认的 managed ownership。ownership guard 支持 local 与 SSH 目标；source 端只读，不做 ownership 检查。
+
+`apply` / `sync` 会先完成整个目标 batch 的 ownership 检查与已实现的 adapter 预检，再开始 backup / write。开始执行后，每个文件仍按「唯一备份 → 临时文件 → rename → 再读校验」处理；后续 edit、I/O 或校验失败时不会自动回滚已经完成的更早写入。secret 写入也使用同一备份与再读校验流程。备份名包含 harness、源文件 basename、路径 hash、纳秒时间与随机后缀，避免同一批多文件或并发写入碰撞。
 
 ## 安全
 
@@ -168,11 +189,15 @@ hctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
 | grok | `~/.grok/config.toml` |
 | hermes | `~/.hermes/config.yaml` + `.env` |
 | opencode | `~/.config/opencode/opencode.jsonc` |
-| pi | `~/.pi/agent/settings.json` + `auth.json` |
+| pi | `~/.pi/agent/settings.json` + `models.json` + `auth.json` |
 | droid | `~/.factory/settings.json` |
 | cursor-agent | `~/.cursor/cli-config.json`（本地 `cursor-agent status` 800ms 超时探测登录） |
 
 `--json` 字段见 [`docs/json-schemas.md`](docs/json-schemas.md)。
+
+Pi 读取当前 `settings.json` 的 `defaultProvider` / `defaultModel`，并从 `models.json.providers[defaultProvider]` 读取 endpoint。持久配置中的密钥观察优先级是所选 provider 的 `auth.json` credential（包括 credential 自带的 exact env mapping），其次是该 provider 的 `models.json.apiKey`；不会执行 command-based key 表达式，也不会把 OAuth credential 改写成 API key。Pi 运行时的 CLI 参数与 ambient environment precedence 不属于配置文件 observation。
+
+Factory Droid 当前 `sessionDefaultSettings.model` / `customModels` schema 支持读取和 model 写入；provider、secret-ref 与 secret 写入会显式返回 unsupported。Hermes 当前 `custom_providers` 可读取；inline `api_key` 的改写/覆盖会显式拒绝。Hermes 在 provider 名不匹配时只使用唯一的完整 normalized endpoint 匹配，不按 host 猜测 credential。
 
 ## 开发
 

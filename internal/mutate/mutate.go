@@ -1,7 +1,6 @@
 package mutate
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/model"
+	"github.com/oldwinter/hctl/internal/ownership"
 )
 
 // FieldWriter can mutate harness config fields.
@@ -23,6 +23,14 @@ type SecretIO interface {
 	WriteSecret(fsys fsx.FS, home, ref, value string) error
 }
 
+type desiredValidator interface {
+	ValidateDesired(fsys fsx.FS, home string, d model.Desired) error
+}
+
+type secretWriteValidator interface {
+	ValidateSecretWrite(fsys fsx.FS, home, provider string) error
+}
+
 // Request is a single-harness apply.
 type Request struct {
 	Adapter   adapters.Adapter
@@ -31,18 +39,32 @@ type Request struct {
 	BackupDir string
 	Desired   model.Desired
 	DryRun    bool
+	Ownership ownership.Options
 }
 
-// Apply writes fields, backs up, and re-reads to verify.
-func Apply(req Request) (model.ApplyReport, error) {
+// Plan is a fully validated field mutation. Creating a plan is read-only.
+type Plan struct {
+	req    Request
+	report model.ApplyReport
+	before model.Snapshot
+	writer FieldWriter
+}
+
+// Preflight validates one field mutation without creating backups or writing.
+func Preflight(req Request) (Plan, error) {
 	rep := model.ApplyReport{DryRun: req.DryRun}
+	plan := Plan{req: req, report: rep}
 	if req.Desired.Empty() {
-		return rep, nil
+		return plan, nil
 	}
 	before, err := adapters.ReadOneFS(req.Adapter, req.FS, req.Home)
 	if err != nil {
-		return rep, err
+		return plan, err
 	}
+	if before.ParseError != "" {
+		return plan, snapshotParseError(before, "destination")
+	}
+	plan.before = before
 	if req.Desired.Model != "" && req.Desired.Model != before.DefaultModel {
 		rep.Changes = append(rep.Changes, model.Change{Harness: before.Name, Field: "model", From: before.DefaultModel, To: req.Desired.Model})
 	}
@@ -52,19 +74,48 @@ func Apply(req Request) (model.ApplyReport, error) {
 	if req.Desired.SecretRef != "" && req.Desired.SecretRef != before.SecretRef {
 		rep.Changes = append(rep.Changes, model.Change{Harness: before.Name, Field: "secretRef", From: before.SecretRef, To: req.Desired.SecretRef})
 	}
+	if err := ownership.Check(req.FS, req.Home, before.ConfigPaths, req.Ownership); err != nil {
+		return plan, err
+	}
 	if req.Desired.Provider != "" {
 		if err := rejectUnsupportedProvider(req.Adapter.Name()); err != nil {
-			return rep, err
+			return plan, err
+		}
+	}
+	if validator, ok := req.Adapter.(desiredValidator); ok {
+		if err := validator.ValidateDesired(req.FS, req.Home, req.Desired); err != nil {
+			return plan, err
 		}
 	}
 	w, ok := req.Adapter.(FieldWriter)
 	if !ok {
-		return rep, exitcode.Errorf(exitcode.Usage, "harness %s does not support writes", req.Adapter.Name())
+		return plan, exitcode.Errorf(exitcode.Usage, "harness %s does not support writes", req.Adapter.Name())
+	}
+	plan.report = rep
+	plan.writer = w
+	return plan, nil
+}
+
+// Apply writes fields after preflight, backs up, and re-reads to verify.
+func Apply(req Request) (model.ApplyReport, error) {
+	plan, err := Preflight(req)
+	if err != nil {
+		return plan.report, err
+	}
+	return ApplyPrepared(plan)
+}
+
+// ApplyPrepared executes a Plan returned by Preflight.
+func ApplyPrepared(plan Plan) (model.ApplyReport, error) {
+	req := plan.req
+	rep := plan.report
+	if req.Desired.Empty() {
+		return rep, nil
 	}
 	if req.DryRun {
 		path := ""
-		if len(before.ConfigPaths) > 0 {
-			path = before.ConfigPaths[0]
+		if len(plan.before.ConfigPaths) > 0 {
+			path = plan.before.ConfigPaths[0]
 		}
 		for i := range rep.Changes {
 			rep.Changes[i].Path = path
@@ -74,12 +125,12 @@ func Apply(req Request) (model.ApplyReport, error) {
 	if req.BackupDir == "" {
 		req.BackupDir = DefaultBackupDir("")
 	}
-	for _, p := range before.ConfigPaths {
+	for _, p := range plan.before.ConfigPaths {
 		data, err := fsx.ReadMaybe(req.FS, p)
 		if err != nil {
 			return rep, err
 		}
-		bak, err := fsx.BackupLocal(req.BackupDir, req.Adapter.Name(), data)
+		bak, err := fsx.BackupLocal(req.BackupDir, req.Adapter.Name(), p, data)
 		if err != nil {
 			return rep, err
 		}
@@ -87,7 +138,7 @@ func Apply(req Request) (model.ApplyReport, error) {
 			rep.Backups = append(rep.Backups, bak)
 		}
 	}
-	paths, err := w.WriteFields(req.FS, req.Home, req.Desired)
+	paths, err := plan.writer.WriteFields(req.FS, req.Home, req.Desired)
 	if err != nil {
 		return rep, err
 	}
@@ -142,56 +193,137 @@ func DefaultBackupDir(configPath string) string {
 	return filepath.Join(home, ".harnessctl", "backups")
 }
 
-// CopySecret transfers a secret or env-ref from src to dst. Values are never returned.
-func CopySecret(ad adapters.Adapter, srcFS fsx.FS, srcHome string, dstFS fsx.FS, dstHome string, preferRef bool) (model.SecretCopy, error) {
-	out := model.SecretCopy{Harness: ad.Name(), Action: "none"}
-	io, ok := ad.(SecretIO)
+// SecretRequest describes a destination-guarded secret transfer.
+type SecretRequest struct {
+	Adapter   adapters.Adapter
+	SrcFS     fsx.FS
+	SrcHome   string
+	DstFS     fsx.FS
+	DstHome   string
+	PreferRef bool
+	Provider  string
+	DryRun    bool
+	BackupDir string
+	Ownership ownership.Options
+}
+
+// SecretPlan holds a validated secret transfer. Secret values remain private.
+type SecretPlan struct {
+	req              SecretRequest
+	io               SecretIO
+	ref              string
+	value            string
+	out              model.SecretCopy
+	destinationPaths []string
+}
+
+// PreflightSecret validates and reads a transfer without mutating its destination.
+func PreflightSecret(req SecretRequest) (SecretPlan, error) {
+	plan := SecretPlan{req: req, out: model.SecretCopy{Harness: req.Adapter.Name(), Action: "none"}}
+	io, ok := req.Adapter.(SecretIO)
 	if !ok {
-		return out, fmt.Errorf("harness %s does not support secret copy", ad.Name())
+		return plan, exitcode.Errorf(exitcode.Usage, "harness %s does not support secret copy", req.Adapter.Name())
 	}
-	ref, val, err := io.PeekSecret(srcFS, srcHome)
+	dst, err := adapters.ReadOneFS(req.Adapter, req.DstFS, req.DstHome)
 	if err != nil {
+		return plan, err
+	}
+	if dst.ParseError != "" {
+		return plan, snapshotParseError(dst, "destination")
+	}
+	if err := ownership.Check(req.DstFS, req.DstHome, dst.ConfigPaths, req.Ownership); err != nil {
+		return plan, err
+	}
+	if validator, ok := req.Adapter.(secretWriteValidator); ok {
+		if err := validator.ValidateSecretWrite(req.DstFS, req.DstHome, req.Provider); err != nil {
+			return plan, err
+		}
+	}
+	src, err := adapters.ReadOneFS(req.Adapter, req.SrcFS, req.SrcHome)
+	if err != nil {
+		return plan, err
+	}
+	if src.ParseError != "" {
+		return plan, snapshotParseError(src, "source")
+	}
+	ref, value, err := io.PeekSecret(req.SrcFS, req.SrcHome)
+	if err != nil {
+		return plan, err
+	}
+	plan.io = io
+	plan.ref = ref
+	plan.value = value
+	plan.out.From = src.SecretFingerprint
+	plan.out.To = dst.SecretFingerprint
+	plan.out.Ref = ref
+	plan.destinationPaths = dst.ConfigPaths
+	switch {
+	case req.PreferRef && ref != "":
+		plan.out.Action = "secret-ref"
+	case value != "":
+		plan.out.Action = "bearer"
+	case ref != "":
+		plan.out.Action = "secret-ref"
+	}
+	return plan, nil
+}
+
+func snapshotParseError(snap model.Snapshot, side string) error {
+	return exitcode.Errorf(exitcode.Parse, "%s %s config has a parse error", snap.Name, side)
+}
+
+// ApplyPreparedSecret executes a SecretPlan returned by PreflightSecret.
+func ApplyPreparedSecret(plan SecretPlan) (model.SecretCopy, error) {
+	out := plan.out
+	if plan.req.DryRun || out.Action == "none" {
+		return out, nil
+	}
+	backupDir := plan.req.BackupDir
+	if backupDir == "" {
+		backupDir = DefaultBackupDir("")
+	}
+	for _, path := range plan.destinationPaths {
+		data, err := fsx.ReadMaybe(plan.req.DstFS, path)
+		if err != nil {
+			return out, err
+		}
+		backup, err := fsx.BackupLocal(backupDir, plan.req.Adapter.Name(), path, data)
+		if err != nil {
+			return out, err
+		}
+		if backup != "" {
+			out.Backups = append(out.Backups, backup)
+		}
+	}
+	ref, value := plan.ref, plan.value
+	if plan.req.PreferRef && ref != "" {
+		value = ""
+	}
+	if err := plan.io.WriteSecret(plan.req.DstFS, plan.req.DstHome, ref, value); err != nil {
 		return out, err
 	}
-	if r, ok := ad.(interface {
-		ReadFS(fsys fsx.FS, home string) (model.Snapshot, error)
-	}); ok {
-		s, _ := r.ReadFS(srcFS, srcHome)
-		out.From = s.SecretFingerprint
-		d, _ := r.ReadFS(dstFS, dstHome)
-		out.To = d.SecretFingerprint
+	after, err := adapters.ReadOneFS(plan.req.Adapter, plan.req.DstFS, plan.req.DstHome)
+	if err != nil {
+		return out, exitcode.Wrap(exitcode.Verify, err)
 	}
-	if preferRef && ref != "" {
-		if err := io.WriteSecret(dstFS, dstHome, ref, ""); err != nil {
-			return out, err
-		}
-		out.Ref = ref
-		out.Copied = true
-		out.Action = "secret-ref"
-		return out, nil
+	if out.Action == "secret-ref" && after.SecretRef != ref {
+		return out, exitcode.Errorf(exitcode.Verify, "%s: secretRef verify failed", plan.req.Adapter.Name())
 	}
-	if val != "" {
-		if err := io.WriteSecret(dstFS, dstHome, ref, val); err != nil {
-			return out, err
-		}
-		out.Ref = ref
-		out.Copied = true
-		out.Action = "bearer"
-		if r, ok := ad.(interface {
-			ReadFS(fsys fsx.FS, home string) (model.Snapshot, error)
-		}); ok {
-			d, _ := r.ReadFS(dstFS, dstHome)
-			out.To = d.SecretFingerprint
-		}
-		return out, nil
+	if out.Action == "bearer" && out.From != "" && after.SecretFingerprint != out.From {
+		return out, exitcode.Errorf(exitcode.Verify, "%s: secret verify failed", plan.req.Adapter.Name())
 	}
-	if ref != "" {
-		if err := io.WriteSecret(dstFS, dstHome, ref, ""); err != nil {
-			return out, err
-		}
-		out.Ref = ref
-		out.Copied = true
-		out.Action = "secret-ref"
-	}
+	out.To = after.SecretFingerprint
+	out.Copied = true
 	return out, nil
+}
+
+// CopySecret transfers a secret or env-ref from src to dst. Values are never returned.
+func CopySecret(ad adapters.Adapter, srcFS fsx.FS, srcHome string, dstFS fsx.FS, dstHome string, preferRef bool) (model.SecretCopy, error) {
+	plan, err := PreflightSecret(SecretRequest{
+		Adapter: ad, SrcFS: srcFS, SrcHome: srcHome, DstFS: dstFS, DstHome: dstHome, PreferRef: preferRef,
+	})
+	if err != nil {
+		return plan.out, err
+	}
+	return ApplyPreparedSecret(plan)
 }

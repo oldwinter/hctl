@@ -10,6 +10,7 @@ import (
 	"github.com/oldwinter/hctl/internal/adapters/claude"
 	"github.com/oldwinter/hctl/internal/adapters/codex"
 	"github.com/oldwinter/hctl/internal/adapters/grok"
+	"github.com/oldwinter/hctl/internal/adapters/pi"
 	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/model"
@@ -116,5 +117,44 @@ func TestSetProviderUnsupportedClaudeAndGrok(t *testing.T) {
 		if string(beforeClaude) != string(afterClaude) || string(beforeGrok) != string(afterGrok) {
 			t.Fatalf("%s: dry-run/error mutated files", tc.name)
 		}
+	}
+}
+
+func TestPreflightRejectsParseErrorBeforeBackupOrWrite(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	backupDir := t.TempDir()
+	settingsPath := filepath.Join(home, ".pi", "agent", "settings.json")
+	authPath := filepath.Join(home, ".pi", "agent", "auth.json")
+	before, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(authPath, []byte(`{"sub2api":`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Apply(Request{
+		Adapter:   pi.Adapter{},
+		FS:        fsx.Local{},
+		Home:      home,
+		BackupDir: backupDir,
+		Desired:   model.Desired{Model: "must-not-be-written"},
+	})
+	if err == nil || exitcode.From(err) != exitcode.Parse || strings.Contains(err.Error(), `{"sub2api":`) {
+		t.Fatalf("expected sanitized parse error, got %v", err)
+	}
+	after, readErr := os.ReadFile(settingsPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(after) != string(before) {
+		t.Fatal("settings changed after parse-error preflight")
+	}
+	entries, readErr := os.ReadDir(backupDir)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("preflight created backups: %v", entries)
 	}
 }

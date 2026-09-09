@@ -1,0 +1,10 @@
+{
+  "providers": {
+    "sub2api": {
+      "baseUrl": "https://llm.box.example/v1",
+      "api": "openai-completions",
+      "apiKey": "sk-test-aaa",
+      "models": []
+    }
+  }
+}

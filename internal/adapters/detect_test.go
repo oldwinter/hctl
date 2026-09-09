@@ -3,7 +3,9 @@ package adapters
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -78,5 +80,22 @@ func TestReadOneFSInstalledUsesRemoteLookPath(t *testing.T) {
 	}
 	if !snap.ConfigFound {
 		t.Fatal("expected remote config to be readable")
+	}
+}
+
+func TestDetectBinaryWithoutCommandProbesKeepsPathLookup(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "called")
+	bin := filepath.Join(dir, "fixture-probe")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\nprintf called > \""+marker+"\"\nprintf 'fixture version\\n'\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	path, version, ok := DetectBinaryFS(fsx.WithoutCommandProbes(fsx.Local{}), []string{"fixture-probe"})
+	if !ok || path != bin || version != "" {
+		t.Fatalf("path=%q version=%q ok=%v", path, version, ok)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("version subprocess ran: %v", err)
 	}
 }

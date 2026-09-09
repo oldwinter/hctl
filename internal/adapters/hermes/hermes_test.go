@@ -1,9 +1,13 @@
 package hermes
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/oldwinter/hctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/secret"
 	"github.com/oldwinter/hctl/internal/testutil"
 )
@@ -30,6 +34,114 @@ func TestReadHomeA(t *testing.T) {
 	}
 	if strings.Contains(snap.String(), "sk-test-aaa") {
 		t.Fatalf("leaked: %s", snap.String())
+	}
+}
+
+func TestReadCurrentCustomProviderSchema(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".hermes", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	data := `model:
+  default: gpt-5.6-sol
+  provider: custom:sub2api
+providers:
+  sub2api:
+    base_url: https://gateway.example/v1
+    key_env: HERMES_CUSTOM_SUB2API_API_KEY
+custom_providers:
+  - name: fixture-gateway
+    base_url: https://gateway.example
+    api_key: sk-test-aaa
+`
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := (Adapter{}).Read(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.DefaultModel != "gpt-5.6-sol" || snap.Provider != "custom:sub2api" || snap.BaseURLHost != "gateway.example" {
+		t.Fatalf("snapshot=%+v", snap)
+	}
+	if snap.SecretRef != "HERMES_CUSTOM_SUB2API_API_KEY" || snap.SecretFingerprint != secret.Fingerprint("sk-test-aaa") {
+		t.Fatalf("snapshot=%+v", snap)
+	}
+	if err := (Adapter{}).ValidateSecretWrite(fsx.Local{}, home, ""); err == nil {
+		t.Fatal("expected inline custom provider secret write refusal")
+	}
+}
+
+func TestCustomProviderFallbackMatchesFullEndpointInsteadOfHost(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".hermes", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	data := `model:
+  default: gpt-5.6-sol
+  provider: custom:gateway
+providers:
+  gateway:
+    api: https://gateway.example/team-a/v1
+custom_providers:
+  - name: team-b
+    base_url: https://gateway.example/team-b
+    api_key: sk-test-bbb
+  - name: team-a
+    base_url: https://gateway.example/team-a
+    api_key: sk-test-aaa
+`
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := (Adapter{}).Read(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.SecretFingerprint != secret.Fingerprint("sk-test-aaa") {
+		t.Fatalf("selected wrong same-host credential: %+v", snap)
+	}
+	_, value, err := (Adapter{}).PeekSecret(fsx.Local{}, home)
+	if err != nil || value != "sk-test-aaa" {
+		t.Fatalf("peek selected %q, err=%v", value, err)
+	}
+}
+
+func TestCustomProviderFallbackRejectsAmbiguousEndpoint(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".hermes", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	data := `model:
+  default: gpt-5.6-sol
+  provider: custom:gateway
+providers:
+  gateway:
+    base_url: https://gateway.example/team/v1
+custom_providers:
+  - name: first
+    base_url: https://gateway.example/team
+    api_key: sk-test-aaa
+  - name: second
+    base_url: https://gateway.example/team/v1
+    api_key: sk-test-bbb
+`
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := (Adapter{}).Read(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.SecretFingerprint != "" || len(snap.Notes) == 0 {
+		t.Fatalf("ambiguous credential should stay unknown: %+v", snap)
+	}
+	_, _, err = (Adapter{}).PeekSecret(fsx.Local{}, home)
+	if err == nil || exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("expected ambiguous secret refusal, got %v", err)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/oldwinter/hctl/internal/edit"
+	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/model"
 	"github.com/oldwinter/hctl/internal/secret"
@@ -20,9 +21,23 @@ func (Adapter) ConfigRelPaths() []string {
 }
 
 type settings struct {
+	Model                  string           `json:"model"`
+	Provider               string           `json:"provider"`
+	BaseURL                string           `json:"baseURL"`
+	APIKey                 string           `json:"apiKey"`
+	SessionDefaultSettings *sessionDefaults `json:"sessionDefaultSettings"`
+	CustomModels           []customModel    `json:"customModels"`
+}
+
+type sessionDefaults struct {
+	Model string `json:"model"`
+}
+
+type customModel struct {
+	ID       string `json:"id"`
 	Model    string `json:"model"`
 	Provider string `json:"provider"`
-	BaseURL  string `json:"baseURL"`
+	BaseURL  string `json:"baseUrl"`
 	APIKey   string `json:"apiKey"`
 }
 
@@ -37,6 +52,9 @@ func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
 	data, err := fsys.ReadFile(path)
 	if err != nil {
 		if fsx.IsNotExist(err) {
+			if fsx.Exists(fsys, authPath) {
+				snap.ConfigFound = true
+			}
 			return snap, nil
 		}
 		return snap, err
@@ -48,17 +66,16 @@ func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
 		return snap, nil
 	}
 	snap.DefaultModel = cfg.Model
-	snap.Provider = cfg.Provider
-	if cfg.BaseURL != "" {
-		snap.BaseURLHost = secret.HostOf(cfg.BaseURL)
+	if cfg.SessionDefaultSettings != nil && cfg.SessionDefaultSettings.Model != "" {
+		snap.DefaultModel = cfg.SessionDefaultSettings.Model
 	}
-	if cfg.APIKey != "" {
-		if name, isRef := secret.EnvRef(cfg.APIKey); isRef {
-			snap.SecretRef = name
-		} else {
-			snap.SecretFingerprint = secret.Fingerprint(cfg.APIKey)
-			snap.SecretPresent = true
-		}
+	selected := findCustomModel(cfg.CustomModels, snap.DefaultModel)
+	if selected != nil {
+		snap.Provider = selected.Provider
+		applyEndpointAndSecret(&snap, selected.BaseURL, selected.APIKey)
+	} else {
+		snap.Provider = cfg.Provider
+		applyEndpointAndSecret(&snap, cfg.BaseURL, cfg.APIKey)
 	}
 	if !snap.SecretPresent && snap.SecretRef == "" && !fsx.Exists(fsys, authPath) {
 		snap.Notes = append(snap.Notes, "missing factory auth")
@@ -66,14 +83,62 @@ func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
 	return snap, nil
 }
 
+func findCustomModel(models []customModel, selected string) *customModel {
+	for i := range models {
+		if models[i].ID == selected {
+			return &models[i]
+		}
+	}
+	return nil
+}
+
+func applyEndpointAndSecret(snap *model.Snapshot, baseURL, apiKey string) {
+	snap.BaseURLHost = secret.HostOf(baseURL)
+	if apiKey == "" {
+		return
+	}
+	if name, isRef := secret.EnvRef(apiKey); isRef {
+		snap.SecretRef = name
+	} else {
+		snap.SecretFingerprint = secret.Fingerprint(apiKey)
+		snap.SecretPresent = true
+	}
+}
+
+func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
+	cfg, err := readSettings(fsys, home)
+	if err != nil {
+		return err
+	}
+	if cfg.SessionDefaultSettings == nil {
+		return nil
+	}
+	if d.Provider != "" {
+		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for current Factory Droid custom models; select a model id")
+	}
+	if d.SecretRef != "" {
+		return exitcode.Errorf(exitcode.Usage, "set secretRef is unsupported for current Factory Droid custom models")
+	}
+	return nil
+}
+
 func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
+	if err := a.ValidateDesired(fsys, home, d); err != nil {
+		return nil, err
+	}
 	path := fsys.Join(home, ".factory", "settings.json")
 	data, err := fsx.ReadMaybe(fsys, path)
 	if err != nil {
 		return nil, err
 	}
 	if d.Model != "" {
-		data, err = edit.SetJSON(data, []string{"model"}, d.Model)
+		var cfg settings
+		_ = json.Unmarshal(data, &cfg)
+		keyPath := []string{"model"}
+		if cfg.SessionDefaultSettings != nil {
+			keyPath = []string{"sessionDefaultSettings", "model"}
+		}
+		data, err = edit.SetJSON(data, keyPath, d.Model)
 		if err != nil {
 			return nil, err
 		}
@@ -99,13 +164,33 @@ func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err er
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return "", "", err
 	}
-	if name, isRef := secret.EnvRef(cfg.APIKey); isRef {
+	value = cfg.APIKey
+	if cfg.SessionDefaultSettings != nil {
+		if selected := findCustomModel(cfg.CustomModels, cfg.SessionDefaultSettings.Model); selected != nil {
+			value = selected.APIKey
+		}
+	}
+	if name, isRef := secret.EnvRef(value); isRef {
 		return name, "", nil
 	}
-	return "", cfg.APIKey, nil
+	return "", value, nil
+}
+
+func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home, provider string) error {
+	cfg, err := readSettings(fsys, home)
+	if err != nil {
+		return err
+	}
+	if cfg.SessionDefaultSettings != nil {
+		return exitcode.Errorf(exitcode.Usage, "secret copy is unsupported for current Factory Droid custom models")
+	}
+	return nil
 }
 
 func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
+	if err := a.ValidateSecretWrite(fsys, home, ""); err != nil {
+		return err
+	}
 	path := fsys.Join(home, ".factory", "settings.json")
 	data, err := fsx.ReadMaybe(fsys, path)
 	if err != nil {
@@ -120,4 +205,16 @@ func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
 		return err
 	}
 	return fsx.AtomicWrite(fsys, path, data, 0o600)
+}
+
+func readSettings(fsys fsx.FS, home string) (settings, error) {
+	data, err := fsx.ReadMaybe(fsys, fsys.Join(home, ".factory", "settings.json"))
+	if err != nil || data == nil {
+		return settings{}, err
+	}
+	var cfg settings
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return settings{}, exitcode.Errorf(exitcode.Parse, "Factory Droid settings.json is invalid")
+	}
+	return cfg, nil
 }

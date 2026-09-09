@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -329,5 +330,201 @@ func TestHARNESSCTL_HOME(t *testing.T) {
 	}
 	if !strings.Contains(out, "opencode") {
 		t.Fatal(out)
+	}
+}
+
+func TestManagedDestinationGuardAppliesToDryRunAndExplicitOverride(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	backupDir := t.TempDir()
+	t.Setenv("HARNESSCTL_BACKUP_DIR", backupDir)
+	manifestPath := filepath.Join(t.TempDir(), "manifest.json")
+	writeTestFile(t, manifestPath, `{"version":1,"units":[{"dest":"~/.codex/config.toml"}]}`)
+	writeTestFile(t, filepath.Join(home, ".config", "harness", "ownership.json"), fmt.Sprintf(`{"version":1,"owner":"oldwinter/dotfiles","manifest":%q}`, manifestPath))
+	configPath := filepath.Join(home, ".codex", "config.toml")
+	before, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = run(t, "--no-probe", "--home", home, "--config", testutil.Testdata(t, "harnessctl.yaml"), "set", "model", "codex", "blocked-model", "--dry-run")
+	if err == nil || exitcode.From(err) != exitcode.Usage || !strings.Contains(err.Error(), "managed") {
+		t.Fatalf("expected managed dry-run refusal, got %v", err)
+	}
+	after, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatal("managed dry-run changed config")
+	}
+	assertDirectoryEmpty(t, backupDir)
+
+	if _, err := run(t, "--no-probe", "--allow-managed", "--home", home, "--config", testutil.Testdata(t, "harnessctl.yaml"), "set", "model", "codex", "allowed-model"); err != nil {
+		t.Fatal(err)
+	}
+	after, err = os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(after), `model = "allowed-model"`) {
+		t.Fatalf("override did not write model: %s", after)
+	}
+}
+
+func TestApplyPreflightsWholeBatchBeforeMutation(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	backupDir := t.TempDir()
+	t.Setenv("HARNESSCTL_BACKUP_DIR", backupDir)
+	manifestPath := filepath.Join(t.TempDir(), "manifest.json")
+	writeTestFile(t, manifestPath, `{"version":1,"units":[{"dest":"~/.pi/agent/settings.json"}]}`)
+	writeTestFile(t, filepath.Join(home, ".config", "harness", "ownership.json"), fmt.Sprintf(`{"version":1,"owner":"oldwinter/dotfiles","manifest":%q}`, manifestPath))
+	desiredPath := filepath.Join(t.TempDir(), "desired.toml")
+	writeTestFile(t, desiredPath, `apiVersion = "harnessctl/v1"
+kind = "DesiredState"
+
+[harnesses.opencode]
+model = "acme/must-not-write"
+
+[harnesses.pi]
+model = "must-not-write"
+`)
+	opencodePath := filepath.Join(home, ".config", "opencode", "opencode.jsonc")
+	piPath := filepath.Join(home, ".pi", "agent", "settings.json")
+	opencodeBefore, _ := os.ReadFile(opencodePath)
+	piBefore, _ := os.ReadFile(piPath)
+
+	_, err := run(t, "--no-probe", "--home", home, "--config", testutil.Testdata(t, "harnessctl.yaml"), "apply", "-f", desiredPath)
+	if err == nil || exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("expected managed batch refusal, got %v", err)
+	}
+	opencodeAfter, _ := os.ReadFile(opencodePath)
+	piAfter, _ := os.ReadFile(piPath)
+	if string(opencodeAfter) != string(opencodeBefore) || string(piAfter) != string(piBefore) {
+		t.Fatal("apply partially mutated a preflight-rejected batch")
+	}
+	assertDirectoryEmpty(t, backupDir)
+}
+
+func TestManagedGuardCoversSecretOnlySync(t *testing.T) {
+	src := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	dst := testutil.CopyTree(t, testutil.Testdata(t, "home-b"))
+	backupDir := t.TempDir()
+	t.Setenv("HARNESSCTL_BACKUP_DIR", backupDir)
+	manifestPath := filepath.Join(t.TempDir(), "manifest.json")
+	writeTestFile(t, manifestPath, `{"version":1,"units":[{"dest":"~/.pi/agent/auth.json"}]}`)
+	writeTestFile(t, filepath.Join(dst, ".config", "harness", "ownership.json"), fmt.Sprintf(`{"version":1,"owner":"oldwinter/dotfiles","manifest":%q}`, manifestPath))
+	configPath := writeLocalContexts(t, src, dst)
+	authPath := filepath.Join(dst, ".pi", "agent", "auth.json")
+	before, _ := os.ReadFile(authPath)
+
+	_, err := run(t, "--no-probe", "--config", configPath, "sync", "--from", "source", "--to", "destination", "--harness", "pi", "--fields", "secret")
+	if err == nil || exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("expected managed secret refusal, got %v", err)
+	}
+	after, _ := os.ReadFile(authPath)
+	if string(after) != string(before) {
+		t.Fatal("managed secret sync changed auth")
+	}
+	assertDirectoryEmpty(t, backupDir)
+}
+
+func TestSyncSecretPreflightUsesPendingPiProvider(t *testing.T) {
+	t.Run("future OAuth provider rejects entire batch", func(t *testing.T) {
+		src, dst := t.TempDir(), t.TempDir()
+		writePiHome(t, src, "provider-b", `{"provider-b":{"type":"api_key","key":"sk-test-bbb"}}`)
+		writePiHome(t, dst, "provider-a", `{"provider-a":{"type":"api_key","key":"sk-test-aaa"},"provider-b":{"type":"oauth","access":"sk-test-aaa","refresh":"sk-test-bbb","expires":4102444800000}}`)
+		backupDir := t.TempDir()
+		t.Setenv("HARNESSCTL_BACKUP_DIR", backupDir)
+		configPath := writeLocalContexts(t, src, dst)
+		settingsPath := filepath.Join(dst, ".pi", "agent", "settings.json")
+		authPath := filepath.Join(dst, ".pi", "agent", "auth.json")
+		settingsBefore, _ := os.ReadFile(settingsPath)
+		authBefore, _ := os.ReadFile(authPath)
+
+		_, err := run(t, "--no-probe", "--config", configPath, "sync", "--from", "source", "--to", "destination", "--harness", "pi", "--fields", "provider,secret")
+		if err == nil || exitcode.From(err) != exitcode.Usage {
+			t.Fatalf("expected future OAuth refusal, got %v", err)
+		}
+		settingsAfter, _ := os.ReadFile(settingsPath)
+		authAfter, _ := os.ReadFile(authPath)
+		if string(settingsAfter) != string(settingsBefore) || string(authAfter) != string(authBefore) {
+			t.Fatal("provider/secret batch partially mutated after refusal")
+		}
+		assertDirectoryEmpty(t, backupDir)
+	})
+
+	t.Run("future API key provider succeeds from OAuth current provider", func(t *testing.T) {
+		src, dst := t.TempDir(), t.TempDir()
+		writePiHome(t, src, "provider-b", `{"provider-b":{"type":"api_key","key":"sk-test-bbb"}}`)
+		writePiHome(t, dst, "provider-a", `{"provider-a":{"type":"oauth","access":"sk-test-aaa","refresh":"sk-test-bbb","expires":4102444800000}}`)
+		t.Setenv("HARNESSCTL_BACKUP_DIR", t.TempDir())
+		configPath := writeLocalContexts(t, src, dst)
+
+		if _, err := run(t, "--no-probe", "--config", configPath, "sync", "--from", "source", "--to", "destination", "--harness", "pi", "--fields", "provider,secret"); err != nil {
+			t.Fatal(err)
+		}
+		settingsData, _ := os.ReadFile(filepath.Join(dst, ".pi", "agent", "settings.json"))
+		var settings map[string]any
+		if err := json.Unmarshal(settingsData, &settings); err != nil {
+			t.Fatal(err)
+		}
+		if settings["defaultProvider"] != "provider-b" {
+			t.Fatalf("provider=%v", settings["defaultProvider"])
+		}
+		authData, _ := os.ReadFile(filepath.Join(dst, ".pi", "agent", "auth.json"))
+		var auth map[string]map[string]any
+		if err := json.Unmarshal(authData, &auth); err != nil {
+			t.Fatal(err)
+		}
+		if auth["provider-b"]["type"] != "api_key" || auth["provider-b"]["key"] != "sk-test-bbb" {
+			t.Fatalf("future provider credential=%v", auth["provider-b"])
+		}
+	})
+}
+
+func writeLocalContexts(t *testing.T, source, destination string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	writeTestFile(t, path, fmt.Sprintf(`apiVersion: harnessctl/v1
+kind: Config
+current-context: source
+contexts:
+  - name: source
+    context:
+      kind: local
+      home: %s
+  - name: destination
+    context:
+      kind: local
+      home: %s
+`, source, destination))
+	return path
+}
+
+func writePiHome(t *testing.T, home, provider, auth string) {
+	t.Helper()
+	writeTestFile(t, filepath.Join(home, ".pi", "agent", "settings.json"), fmt.Sprintf(`{"defaultProvider":%q,"defaultModel":"fixture-model"}`, provider))
+	writeTestFile(t, filepath.Join(home, ".pi", "agent", "models.json"), `{"providers":{"provider-a":{"baseUrl":"https://a.example/v1"},"provider-b":{"baseUrl":"https://b.example/v1"}}}`)
+	writeTestFile(t, filepath.Join(home, ".pi", "agent", "auth.json"), auth)
+}
+
+func writeTestFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertDirectoryEmpty(t *testing.T, path string) {
+	t.Helper()
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected no backups, got %v", entries)
 	}
 }
