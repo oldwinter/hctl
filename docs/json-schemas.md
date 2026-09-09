@@ -9,7 +9,7 @@
 | name | string | official harness id |
 | installed | bool | binary on PATH (local) or remote `command -v` (SSH) |
 | installedPath | string | |
-| version | string | cheap `--version` probe (local only; skipped over SSH) |
+| version | string | cheap `--version` probe (local only; skipped over SSH and with `--no-probe`) |
 | configPaths | string[] | |
 | configFound | bool | |
 | provider | string | |
@@ -34,7 +34,7 @@
 
 `dryRun`, `changes[]` (`harness`, `field`, `from`, `to`, `path`), `backups[]`, `verified`.
 
-Sync may add `secrets[]`: `harness`, `fromFingerprint`, `toFingerprint`, `secretRef`, `copied`, `action`.
+Sync may add `secrets[]`: `harness`, `fromFingerprint`, `toFingerprint`, `secretRef`, `copied`, `action`, `backups[]`.
 
 ## DesiredFile (`apply -f`, `diff -f`)
 

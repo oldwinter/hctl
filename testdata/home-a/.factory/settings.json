@@ -1,6 +1,16 @@
 {
-  "model": "gpt-5",
-  "provider": "factory",
-  "baseURL": "https://api.openai.com/v1",
-  "apiKey": "sk-test-aaa"
+  "sessionDefaultSettings": {
+    "model": "custom:gpt-5-0",
+    "reasoningEffort": "high"
+  },
+  "customModels": [
+    {
+      "id": "custom:gpt-5-0",
+      "model": "gpt-5",
+      "provider": "openai",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKey": "sk-test-aaa"
+    }
+  ],
+  "unrelated": true
 }

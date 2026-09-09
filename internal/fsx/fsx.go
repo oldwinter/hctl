@@ -1,7 +1,10 @@
 package fsx
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -41,6 +44,28 @@ func (Local) Join(elem ...string) string           { return filepath.Join(elem..
 // LookPath resolves a binary on the local PATH.
 func (Local) LookPath(name string) (string, error) {
 	return exec.LookPath(name)
+}
+
+type noCommandProbes struct {
+	FS
+}
+
+func (n noCommandProbes) LookPath(name string) (string, error) {
+	looker, ok := n.FS.(interface {
+		LookPath(string) (string, error)
+	})
+	if !ok {
+		return "", os.ErrNotExist
+	}
+	return looker.LookPath(name)
+}
+
+func (noCommandProbes) CommandProbesAllowed() bool { return false }
+
+// WithoutCommandProbes keeps filesystem access and PATH lookup but disables
+// version/login subprocesses used only to enrich inventory.
+func WithoutCommandProbes(fsys FS) FS {
+	return noCommandProbes{FS: fsys}
 }
 
 func IsNotExist(err error) bool {
@@ -85,25 +110,48 @@ func AtomicWrite(fsys FS, name string, data []byte, perm os.FileMode) error {
 	return nil
 }
 
-// BackupLocal copies src bytes into destDir as harness-timestamp.bak (0600).
-func BackupLocal(destDir, harness string, src []byte) (string, error) {
+// BackupLocal copies src bytes into a uniquely reserved local file (0600).
+func BackupLocal(destDir, harness, sourcePath string, src []byte) (string, error) {
 	if len(src) == 0 {
 		return "", nil
 	}
 	if err := os.MkdirAll(destDir, 0o700); err != nil {
 		return "", err
 	}
-	name := harness + "-" + time.Now().UTC().Format("20060102T150405Z") + ".bak"
-	path := filepath.Join(destDir, name)
-	if err := os.WriteFile(path, src, 0o600); err != nil {
+	sum := sha256.Sum256([]byte(sourcePath))
+	source := strings.NewReplacer("/", "-", "\\", "-", " ", "-").Replace(filepath.Base(sourcePath))
+	prefix := fmt.Sprintf("%s-%s-%s-%s-", harness, source, hex.EncodeToString(sum[:4]), time.Now().UTC().Format("20060102T150405.000000000Z"))
+	f, err := os.CreateTemp(destDir, prefix+"*.bak")
+	if err != nil {
 		return "", err
 	}
-	return path, nil
+	backupPath := f.Name()
+	ok := false
+	defer func() {
+		_ = f.Close()
+		if !ok {
+			_ = os.Remove(backupPath)
+		}
+	}()
+	if err := f.Chmod(0o600); err != nil {
+		return "", err
+	}
+	if _, err := f.Write(src); err != nil {
+		return "", err
+	}
+	if err := f.Close(); err != nil {
+		return "", err
+	}
+	ok = true
+	return backupPath, nil
 }
 
 func dirOf(fsys FS, name string) string {
-	if _, ok := fsys.(Local); ok {
+	switch typed := fsys.(type) {
+	case Local:
 		return filepath.Dir(name)
+	case noCommandProbes:
+		return dirOf(typed.FS, name)
 	}
 	return path.Dir(strings.ReplaceAll(name, "\\", "/"))
 }

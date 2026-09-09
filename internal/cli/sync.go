@@ -58,10 +58,20 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 				fields = "model,provider"
 			}
 			for _, f := range splitCSV(fields) {
+				switch f {
+				case "model", "provider", "secret-ref", "secret":
+				default:
+					return exitcode.Errorf(exitcode.Usage, "unknown sync field %q", f)
+				}
 				fieldSet[f] = true
 			}
-			rep := model.ApplyReport{DryRun: dryRun}
-			var copies []model.SecretCopy
+			type prepared struct {
+				field     mutate.Plan
+				hasField  bool
+				secret    mutate.SecretPlan
+				hasSecret bool
+			}
+			preparedBatch := make([]prepared, 0, len(names))
 			for _, name := range names {
 				ad, err := adapters.ByName(name)
 				if err != nil {
@@ -70,6 +80,9 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 				src, err := adapters.ReadOneFS(ad, srcFS, srcHome)
 				if err != nil {
 					return err
+				}
+				if src.ParseError != "" {
+					return exitcode.Errorf(exitcode.Parse, "%s source config has a parse error", src.Name)
 				}
 				d := model.Desired{}
 				if fieldSet["model"] {
@@ -81,15 +94,46 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 				if fieldSet["secret-ref"] {
 					d.SecretRef = src.SecretRef
 				}
+				entry := prepared{}
 				if !d.Empty() {
-					one, err := mutate.Apply(mutate.Request{
+					entry.field, err = mutate.Preflight(mutate.Request{
 						Adapter:   ad,
 						FS:        dstFS,
 						Home:      dstHome,
 						BackupDir: mutate.DefaultBackupDir(opts.configPath),
 						Desired:   d,
 						DryRun:    dryRun,
+						Ownership: opts.ownershipOptions(),
 					})
+					if err != nil {
+						return err
+					}
+					entry.hasField = true
+				}
+				if fieldSet["secret"] {
+					entry.secret, err = mutate.PreflightSecret(mutate.SecretRequest{
+						Adapter:   ad,
+						SrcFS:     srcFS,
+						SrcHome:   srcHome,
+						DstFS:     dstFS,
+						DstHome:   dstHome,
+						Provider:  d.Provider,
+						DryRun:    dryRun,
+						BackupDir: mutate.DefaultBackupDir(opts.configPath),
+						Ownership: opts.ownershipOptions(),
+					})
+					if err != nil {
+						return err
+					}
+					entry.hasSecret = true
+				}
+				preparedBatch = append(preparedBatch, entry)
+			}
+			rep := model.ApplyReport{DryRun: dryRun}
+			var copies []model.SecretCopy
+			for _, entry := range preparedBatch {
+				if entry.hasField {
+					one, err := mutate.ApplyPrepared(entry.field)
 					if err != nil {
 						return err
 					}
@@ -97,14 +141,13 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 					rep.Backups = append(rep.Backups, one.Backups...)
 					rep.Verified = rep.Verified || one.Verified
 				}
-				if fieldSet["secret"] && !dryRun {
-					cp, err := mutate.CopySecret(ad, srcFS, srcHome, dstFS, dstHome, false)
+				if entry.hasSecret {
+					cp, err := mutate.ApplyPreparedSecret(entry.secret)
 					if err != nil {
 						return err
 					}
 					copies = append(copies, cp)
-				} else if fieldSet["secret"] && dryRun {
-					copies = append(copies, model.SecretCopy{Harness: name, Action: "bearer", From: src.SecretFingerprint})
+					rep.Backups = append(rep.Backups, cp.Backups...)
 				}
 			}
 			type out struct {

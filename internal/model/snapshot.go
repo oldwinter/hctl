@@ -90,12 +90,13 @@ type ApplyReport struct {
 
 // SecretCopy is a sync secret transfer record (fingerprints only).
 type SecretCopy struct {
-	Harness string `json:"harness"`
-	From    string `json:"fromFingerprint,omitempty"`
-	To      string `json:"toFingerprint,omitempty"`
-	Ref     string `json:"secretRef,omitempty"`
-	Copied  bool   `json:"copied"`
-	Action  string `json:"action"`
+	Harness string   `json:"harness"`
+	From    string   `json:"fromFingerprint,omitempty"`
+	To      string   `json:"toFingerprint,omitempty"`
+	Ref     string   `json:"secretRef,omitempty"`
+	Copied  bool     `json:"copied"`
+	Action  string   `json:"action"`
+	Backups []string `json:"backups,omitempty"`
 }
 
 // DoctorCheck is one row of `harnessctl doctor`.

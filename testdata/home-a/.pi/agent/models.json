@@ -1,0 +1,16 @@
+{
+  "providers": {
+    "sub2api": {
+      "name": "Fixture Gateway",
+      "baseUrl": "https://api.openai.com/v1",
+      "api": "openai-completions",
+      "apiKey": "sk-test-bbb",
+      "models": []
+    },
+    "unused": {
+      "baseUrl": "https://unused.invalid/v1",
+      "apiKey": "sk-test-bbb",
+      "models": []
+    }
+  }
+}
