@@ -15,7 +15,7 @@ import (
 )
 
 func TestReadHomeA(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-a"))
+	snap, err := Adapter{}.Read(fsx.Local{}, testutil.Testdata(t, "home-a"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestReadHomeA(t *testing.T) {
 }
 
 func TestProviderScopedAuthTakesPrecedenceOverModelsJSON(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-a"))
+	snap, err := Adapter{}.Read(fsx.Local{}, testutil.Testdata(t, "home-a"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestProviderScopedAuthEnvMappingAndUnresolvedPrecedence(t *testing.T) {
 	if err := os.WriteFile(authPath, []byte(`{"sub2api":{"type":"api_key","key":"$PI_FIXTURE_KEY","env":{"PI_FIXTURE_KEY":"sk-test-aaa"}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	snap, err := (Adapter{}).Read(home)
+	snap, err := (Adapter{}).Read(fsx.Local{}, home)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestProviderScopedAuthEnvMappingAndUnresolvedPrecedence(t *testing.T) {
 	if err := os.WriteFile(authPath, []byte(`{"sub2api":{"type":"api_key"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	snap, err = (Adapter{}).Read(home)
+	snap, err = (Adapter{}).Read(fsx.Local{}, home)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestSecretRefWritesSelectedProviderCredential(t *testing.T) {
 	if raw["unused"]["key"] != "sk-test-bbb" {
 		t.Fatal("unrelated provider credential changed")
 	}
-	snap, err := (Adapter{}).Read(home)
+	snap, err := (Adapter{}).Read(fsx.Local{}, home)
 	if err != nil || snap.SecretRef != "PI_FIXTURE_KEY" {
 		t.Fatalf("snapshot=%+v err=%v", snap, err)
 	}

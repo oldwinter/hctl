@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/hctl/internal/adapters"
+	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/render"
 )
 
@@ -14,7 +15,13 @@ func newDescribeCmd(opts *options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "describe RESOURCE NAME",
 		Short: "Show details of a harness snapshot",
-		Args:  cobra.ExactArgs(2),
+		Example: `  hctl describe harness codex`,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 2 {
+				return exitcode.Errorf(exitcode.Usage, "describe harness NAME (example: hctl describe harness codex)")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !isHarnessResource(args[0]) {
 				return writeErr(cmd, fmt.Errorf("unknown resource %q (want harness)", args[0]))
@@ -27,7 +34,7 @@ func newDescribeCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			snap, err := adapters.ReadOneFS(a, fsys, home)
+			snap, err := adapters.ReadOne(a, fsys, home)
 			if err != nil {
 				return writeErr(cmd, err)
 			}

@@ -48,11 +48,7 @@ type modelObj struct {
 	BaseURL  string `yaml:"base_url"`
 }
 
-func (a Adapter) Read(home string) (model.Snapshot, error) {
-	return a.ReadFS(fsx.Local{}, home)
-}
-
-func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	cfgPath := fsys.Join(home, ".hermes", "config.yaml")
 	envPath := fsys.Join(home, ".hermes", ".env")
 	snap := model.Snapshot{Name: a.Name(), ConfigPaths: []string{cfgPath, envPath}}
@@ -264,7 +260,7 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 	if d.SecretRef != "" {
 		prov := d.Provider
 		if prov == "" {
-			snap, _ := a.ReadFS(fsys, home)
+			snap, _ := a.Read(fsys, home)
 			prov = snap.Provider
 		}
 		if prov == "" || prov == "auto" {
@@ -283,7 +279,7 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 }
 
 func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err error) {
-	snap, err := a.ReadFS(fsys, home)
+	snap, err := a.Read(fsys, home)
 	if err != nil {
 		return "", "", err
 	}

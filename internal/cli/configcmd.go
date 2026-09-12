@@ -39,9 +39,13 @@ func newConfigCmd(opts *options) *cobra.Command {
 				return writeErr(cmd, err)
 			}
 			if opts.jsonOut {
-				return render.JSON(cmd.OutOrStdout(), map[string]string{"currentContext": cfg.CurrentContext})
+				return render.JSON(cmd.OutOrStdout(), map[string]string{
+					"currentContext": cfg.CurrentContext,
+					"config":         opts.configPath,
+				})
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), cfg.CurrentContext)
+			fmt.Fprintln(cmd.OutOrStdout(), opts.configPath)
 			return nil
 		},
 	})
@@ -93,7 +97,7 @@ func newConfigCmd(opts *options) *cobra.Command {
 	cmd.AddCommand(setCtx)
 	cmd.AddCommand(&cobra.Command{
 		Use:   "use-context NAME",
-		Short: "Set the current context (writes the hctl config file under ~/.harnessctl)",
+		Short: "Set the current context (writes the resolved hctl config file)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := opts.loadConfig()

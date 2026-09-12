@@ -31,11 +31,7 @@ type providerNode struct {
 	Settings map[string]any `json:"settings"`
 }
 
-func (a Adapter) Read(home string) (model.Snapshot, error) {
-	return a.ReadFS(fsx.Local{}, home)
-}
-
-func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	used, data, err := readConfig(fsys, home)
 	snap := model.Snapshot{
 		Name:        a.Name(),
@@ -145,7 +141,7 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 	modelVal := d.Model
 	if d.Provider != "" {
 		if modelVal == "" {
-			snap, _ := a.ReadFS(fsys, home)
+			snap, _ := a.Read(fsys, home)
 			modelVal = snap.DefaultModel
 		}
 		if i := strings.IndexByte(modelVal, '/'); i > 0 {
@@ -229,7 +225,7 @@ func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
 	if used == "" {
 		used = fsys.Join(home, ".config", "opencode", "opencode.jsonc")
 	}
-	snap, _ := a.ReadFS(fsys, home)
+	snap, _ := a.Read(fsys, home)
 	prov := snap.Provider
 	if prov == "" {
 		prov = "custom"

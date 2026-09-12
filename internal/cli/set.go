@@ -25,8 +25,8 @@ func newSetCmd(opts *options) *cobra.Command {
   hctl set provider hermes custom
 
 Writes are atomic (temp + rename). Previous files are copied to unique,
-source-identifying .bak files under ~/.harnessctl/backups/ (or
-$HARNESSCTL_BACKUP_DIR).
+source-identifying .bak files under backups/ beside the resolved config
+(or $HCTL_BACKUP_DIR / $HARNESSCTL_BACKUP_DIR).
 After write the snapshot is re-read and must match the intent.
 
 set provider is unsupported for claude (implicit anthropic) and grok
@@ -35,7 +35,12 @@ set provider is unsupported for claude (implicit anthropic) and grok
 
 Secrets are never printed. Unrelated keys are kept; see README for
 format-preservation caveats (JSONC comments are dropped).`,
-		Args:      cobra.ExactArgs(3),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 3 {
+				return exitcode.Errorf(exitcode.Usage, "set model|provider HARNESS VALUE (example: hctl set model codex o4-mini --dry-run)")
+			}
+			return nil
+		},
 		ValidArgs: []string{"model", "provider"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var d model.Desired
@@ -90,12 +95,12 @@ func (o *options) openNamed(cfg *config.File, name string) (string, fsx.FS, stri
 	if err != nil {
 		return "", nil, "", err
 	}
-	fsys, home, err := remote.Dial(nc, o.home)
+	t, err := remote.Dial(nc, o.home)
 	if err != nil {
 		return "", nil, "", err
 	}
 	if o.noProbe {
-		fsys = fsx.WithoutCommandProbes(fsys)
+		t.FS = fsx.WithoutCommandProbes(t.FS)
 	}
-	return name, fsys, home, nil
+	return t.Name, t.FS, t.Home, nil
 }

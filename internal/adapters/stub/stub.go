@@ -21,11 +21,7 @@ func (a Adapter) Aliases() []string        { return nil }
 func (a Adapter) BinaryNames() []string    { return a.bins }
 func (a Adapter) ConfigRelPaths() []string { return a.relPaths }
 
-func (a Adapter) Read(home string) (model.Snapshot, error) {
-	return a.ReadFS(fsx.Local{}, home)
-}
-
-func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	var paths []string
 	found := false
 	for _, rel := range a.relPaths {

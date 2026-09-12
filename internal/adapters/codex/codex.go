@@ -34,11 +34,7 @@ type provider struct {
 	ExperimentalBearerToken string `toml:"experimental_bearer_token"`
 }
 
-func (a Adapter) Read(home string) (model.Snapshot, error) {
-	return a.ReadFS(fsx.Local{}, home)
-}
-
-func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	path := fsys.Join(home, ".codex", "config.toml")
 	snap := model.Snapshot{Name: a.Name(), ConfigPaths: []string{path}}
 	data, err := fsys.ReadFile(path)
@@ -105,7 +101,7 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 	if d.SecretRef != "" {
 		prov := d.Provider
 		if prov == "" {
-			snap, _ := a.ReadFS(fsys, home)
+			snap, _ := a.Read(fsys, home)
 			prov = snap.Provider
 		}
 		if prov == "" {
@@ -145,7 +141,7 @@ func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
 	if err != nil {
 		return err
 	}
-	snap, _ := a.ReadFS(fsys, home)
+	snap, _ := a.Read(fsys, home)
 	prov := snap.Provider
 	if prov == "" || prov == "openai" {
 		prov = "custom"

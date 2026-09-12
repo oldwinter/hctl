@@ -33,13 +33,14 @@ Examples:
 			}
 			return nil
 		},
+		Aliases:   []string{"list"},
 		ValidArgs: []string{"harnesses", "harness", "models", "model"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, fsys, home, err := opts.openTarget()
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			snaps, err := adapters.ScanFS(fsys, home)
+			snaps, err := adapters.Scan(fsys, home)
 			if err != nil {
 				return writeErr(cmd, err)
 			}

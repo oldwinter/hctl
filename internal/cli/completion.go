@@ -2,6 +2,8 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/oldwinter/hctl/internal/exitcode"
 )
 
 func newCompletionCmd() *cobra.Command {
@@ -11,15 +13,20 @@ func newCompletionCmd() *cobra.Command {
 		Long: `To load completions:
 
   # bash
-  source <(harnessctl completion bash)
+  source <(hctl completion bash)
 
   # zsh
-  source <(harnessctl completion zsh)
+  source <(hctl completion zsh)
 
   # fish
-  harnessctl completion fish | source
+  hctl completion fish | source
 `,
-		Args:      cobra.ExactArgs(1),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return exitcode.Errorf(exitcode.Usage, "completion bash|zsh|fish|powershell (example: hctl completion bash)")
+			}
+			return nil
+		},
 		ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch args[0] {

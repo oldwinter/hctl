@@ -35,7 +35,7 @@ func TestApplySetModelRoundTrip(t *testing.T) {
 	if !rep.Verified {
 		t.Fatal("expected verify")
 	}
-	snap, err := adapters.ReadOne(ad, home)
+	snap, err := adapters.ReadOne(ad, fsx.Local{}, home)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,6 +55,54 @@ func TestApplySetModelRoundTrip(t *testing.T) {
 	ents, _ := os.ReadDir(bak)
 	if len(ents) == 0 {
 		t.Fatal("expected backup")
+	}
+}
+
+func TestApplyIdempotentSkipsBackupAndWrite(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	bak := t.TempDir()
+	ad := codex.Adapter{}
+	req := Request{
+		Adapter:   ad,
+		FS:        fsx.Local{},
+		Home:      home,
+		BackupDir: bak,
+		Desired:   model.Desired{Model: "o4-mini"},
+	}
+	if _, err := Apply(req); err != nil {
+		t.Fatal(err)
+	}
+	ents, err := os.ReadDir(bak)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ents) == 0 {
+		t.Fatal("expected first apply to backup")
+	}
+	before, err := os.ReadFile(filepath.Join(home, ".codex", "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rep, err := Apply(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Changes) != 0 || len(rep.Backups) != 0 || rep.Verified {
+		t.Fatalf("converged apply should no-op: %#v", rep)
+	}
+	after, err := os.ReadFile(filepath.Join(home, ".codex", "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatal("idempotent apply rewrote config")
+	}
+	ents2, err := os.ReadDir(bak)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ents2) != len(ents) {
+		t.Fatalf("idempotent apply created extra backups: %d -> %d", len(ents), len(ents2))
 	}
 }
 

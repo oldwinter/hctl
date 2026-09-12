@@ -6,12 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/secret"
 	"github.com/oldwinter/hctl/internal/testutil"
 )
 
 func TestReadHomeA(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-a"))
+	snap, err := Adapter{}.Read(fsx.Local{}, testutil.Testdata(t, "home-a"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +39,7 @@ func TestReadHomeA(t *testing.T) {
 }
 
 func TestOnboardingJSONIncomplete(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-theme"))
+	snap, err := Adapter{}.Read(fsx.Local{}, testutil.Testdata(t, "home-theme"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +63,7 @@ func TestOnboardingJSONMissingFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(home, ".claude", "settings.json"), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	snap, err := Adapter{}.Read(home)
+	snap, err := Adapter{}.Read(fsx.Local{}, home)
 	if err != nil {
 		t.Fatal(err)
 	}

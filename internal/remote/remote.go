@@ -9,13 +9,21 @@ import (
 	"github.com/oldwinter/hctl/internal/fsx"
 )
 
+// Target is one opened context: a filesystem rooted at Home.
+type Target struct {
+	Name string
+	FS   fsx.FS
+	Home string
+}
+
 // Dial opens a filesystem for a context. Tests may replace this.
 var Dial = DefaultDial
 
-// DefaultDial returns a local FS, or an OpenSSH-backed FS for kind=ssh.
-func DefaultDial(nc config.NamedContext, homeFlag string) (fsx.FS, string, error) {
+// DefaultDial is the only home resolver. --home / HCTL_HOME wins and
+// allows fixture tests even for ssh.
+func DefaultDial(nc config.NamedContext, homeFlag string) (Target, error) {
 	if homeFlag != "" {
-		return fsx.Local{}, homeFlag, nil
+		return Target{Name: nc.Name, FS: fsx.Local{}, Home: homeFlag}, nil
 	}
 	ctx := nc.Context
 	if ctx.Kind == "" {
@@ -27,28 +35,31 @@ func DefaultDial(nc config.NamedContext, homeFlag string) (fsx.FS, string, error
 	}
 	if ctx.Kind != config.KindSSH {
 		if ctx.Home != "" {
-			return fsx.Local{}, expand(ctx.Home), nil
+			return Target{Name: nc.Name, FS: fsx.Local{}, Home: expand(ctx.Home)}, nil
 		}
 		home, err := os.UserHomeDir()
-		return fsx.Local{}, home, err
+		if err != nil {
+			return Target{}, err
+		}
+		return Target{Name: nc.Name, FS: fsx.Local{}, Home: home}, nil
 	}
-	if os.Getenv("HARNESSCTL_SSH") == "0" {
-		return nil, "", exitcode.Errorf(exitcode.SSH, "ssh disabled (HARNESSCTL_SSH=0)")
+	if config.Getenv("SSH") == "0" {
+		return Target{}, exitcode.Errorf(exitcode.SSH, "ssh disabled (HCTL_SSH=0 or HARNESSCTL_SSH=0)")
 	}
-	target := ctx.Target()
-	if target == "" {
-		return nil, "", exitcode.Errorf(exitcode.SSH, "context %q: ssh target is empty", nc.Name)
+	sshTarget := ctx.Target()
+	if sshTarget == "" {
+		return Target{}, exitcode.Errorf(exitcode.SSH, "context %q: ssh target is empty", nc.Name)
 	}
-	s := fsx.SSH{Target: target, Identity: ctx.IdentityFile}
+	s := fsx.SSH{Target: sshTarget, Identity: ctx.IdentityFile}
 	home := ctx.Home
 	if home == "" {
 		var err error
 		home, err = s.RemoteHome()
 		if err != nil {
-			return nil, "", err
+			return Target{}, err
 		}
 	}
-	return s, home, nil
+	return Target{Name: nc.Name, FS: s, Home: home}, nil
 }
 
 func expand(p string) string {

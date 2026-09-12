@@ -27,4 +27,18 @@ func TestDiffAgainst(t *testing.T) {
 	if len(ch) == 0 {
 		t.Fatal("expected model change")
 	}
+	same := model.ChangesFromDesired("codex", snaps[0], want.Harnesses["codex"])
+	if len(same) == 0 {
+		t.Fatal("shared table should produce the same codex model change")
+	}
+	var got model.Change
+	for _, c := range ch {
+		if c.Harness == "codex" && c.Field == "model" {
+			got = c
+			break
+		}
+	}
+	if got != same[0] {
+		t.Fatalf("diff vs table: %#v vs %#v", got, same[0])
+	}
 }

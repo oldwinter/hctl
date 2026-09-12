@@ -1,11 +1,8 @@
 package mutate
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
-
 	"github.com/oldwinter/hctl/internal/adapters"
+	"github.com/oldwinter/hctl/internal/config"
 	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/model"
@@ -57,7 +54,7 @@ func Preflight(req Request) (Plan, error) {
 	if req.Desired.Empty() {
 		return plan, nil
 	}
-	before, err := adapters.ReadOneFS(req.Adapter, req.FS, req.Home)
+	before, err := adapters.ReadOne(req.Adapter, req.FS, req.Home)
 	if err != nil {
 		return plan, err
 	}
@@ -65,22 +62,9 @@ func Preflight(req Request) (Plan, error) {
 		return plan, snapshotParseError(before, "destination")
 	}
 	plan.before = before
-	if req.Desired.Model != "" && req.Desired.Model != before.DefaultModel {
-		rep.Changes = append(rep.Changes, model.Change{Harness: before.Name, Field: "model", From: before.DefaultModel, To: req.Desired.Model})
-	}
-	if req.Desired.Provider != "" && req.Desired.Provider != before.Provider {
-		rep.Changes = append(rep.Changes, model.Change{Harness: before.Name, Field: "provider", From: before.Provider, To: req.Desired.Provider})
-	}
-	if req.Desired.SecretRef != "" && req.Desired.SecretRef != before.SecretRef {
-		rep.Changes = append(rep.Changes, model.Change{Harness: before.Name, Field: "secretRef", From: before.SecretRef, To: req.Desired.SecretRef})
-	}
+	rep.Changes = model.ChangesFromDesired(before.Name, before, req.Desired)
 	if err := ownership.Check(req.FS, req.Home, before.ConfigPaths, req.Ownership); err != nil {
 		return plan, err
-	}
-	if req.Desired.Provider != "" {
-		if err := rejectUnsupportedProvider(req.Adapter.Name()); err != nil {
-			return plan, err
-		}
 	}
 	if validator, ok := req.Adapter.(desiredValidator); ok {
 		if err := validator.ValidateDesired(req.FS, req.Home, req.Desired); err != nil {
@@ -109,7 +93,7 @@ func Apply(req Request) (model.ApplyReport, error) {
 func ApplyPrepared(plan Plan) (model.ApplyReport, error) {
 	req := plan.req
 	rep := plan.report
-	if req.Desired.Empty() {
+	if len(rep.Changes) == 0 {
 		return rep, nil
 	}
 	if req.DryRun {
@@ -147,50 +131,25 @@ func ApplyPrepared(plan Plan) (model.ApplyReport, error) {
 			rep.Changes[i].Path = paths[0]
 		}
 	}
-	after, err := adapters.ReadOneFS(req.Adapter, req.FS, req.Home)
+	after, err := adapters.ReadOne(req.Adapter, req.FS, req.Home)
 	if err != nil {
 		return rep, exitcode.Wrap(exitcode.Verify, err)
 	}
 	if after.ParseError != "" {
 		return rep, exitcode.Errorf(exitcode.Parse, "%s: parse error after write: %s", after.Name, after.ParseError)
 	}
-	if req.Desired.Model != "" && after.DefaultModel != req.Desired.Model {
-		return rep, exitcode.Errorf(exitcode.Verify, "%s: model verify failed: got %q want %q", after.Name, after.DefaultModel, req.Desired.Model)
-	}
-	if req.Desired.Provider != "" && after.Provider != req.Desired.Provider {
-		return rep, exitcode.Errorf(exitcode.Verify, "%s: provider verify failed: got %q want %q", after.Name, after.Provider, req.Desired.Provider)
-	}
-	if req.Desired.SecretRef != "" && after.SecretRef != req.Desired.SecretRef {
-		return rep, exitcode.Errorf(exitcode.Verify, "%s: secretRef verify failed: got %q want %q", after.Name, after.SecretRef, req.Desired.SecretRef)
+	if leftover := model.ChangesFromDesired(after.Name, after, req.Desired); len(leftover) > 0 {
+		c := leftover[0]
+		return rep, exitcode.Errorf(exitcode.Verify, "%s: %s verify failed: got %q want %q", after.Name, c.Field, c.From, c.To)
 	}
 	rep.Verified = true
 	return rep, nil
 }
 
-func rejectUnsupportedProvider(name string) error {
-	switch name {
-	case "claude":
-		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for claude (provider is implicit anthropic); use set model")
-	case "grok":
-		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for grok (inferred from base_url); use set model")
-	default:
-		return nil
-	}
-}
-
-// DefaultBackupDir is ~/.harnessctl/backups or $HARNESSCTL_BACKUP_DIR.
+// DefaultBackupDir is $HCTL_BACKUP_DIR, else $HARNESSCTL_BACKUP_DIR, else
+// backups/ beside the resolved config file.
 func DefaultBackupDir(configPath string) string {
-	if d := strings.TrimSpace(os.Getenv("HARNESSCTL_BACKUP_DIR")); d != "" {
-		return d
-	}
-	if configPath != "" {
-		return filepath.Join(filepath.Dir(configPath), "backups")
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(".harnessctl", "backups")
-	}
-	return filepath.Join(home, ".harnessctl", "backups")
+	return config.BackupDir(configPath)
 }
 
 // SecretRequest describes a destination-guarded secret transfer.
@@ -224,7 +183,7 @@ func PreflightSecret(req SecretRequest) (SecretPlan, error) {
 	if !ok {
 		return plan, exitcode.Errorf(exitcode.Usage, "harness %s does not support secret copy", req.Adapter.Name())
 	}
-	dst, err := adapters.ReadOneFS(req.Adapter, req.DstFS, req.DstHome)
+	dst, err := adapters.ReadOne(req.Adapter, req.DstFS, req.DstHome)
 	if err != nil {
 		return plan, err
 	}
@@ -239,7 +198,7 @@ func PreflightSecret(req SecretRequest) (SecretPlan, error) {
 			return plan, err
 		}
 	}
-	src, err := adapters.ReadOneFS(req.Adapter, req.SrcFS, req.SrcHome)
+	src, err := adapters.ReadOne(req.Adapter, req.SrcFS, req.SrcHome)
 	if err != nil {
 		return plan, err
 	}
@@ -302,7 +261,7 @@ func ApplyPreparedSecret(plan SecretPlan) (model.SecretCopy, error) {
 	if err := plan.io.WriteSecret(plan.req.DstFS, plan.req.DstHome, ref, value); err != nil {
 		return out, err
 	}
-	after, err := adapters.ReadOneFS(plan.req.Adapter, plan.req.DstFS, plan.req.DstHome)
+	after, err := adapters.ReadOne(plan.req.Adapter, plan.req.DstFS, plan.req.DstHome)
 	if err != nil {
 		return out, exitcode.Wrap(exitcode.Verify, err)
 	}

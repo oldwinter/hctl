@@ -25,8 +25,8 @@ func newSyncCmd(opts *options) *cobra.Command {
 		Short: "Copy selected harness fields from one context to another",
 		Long: `Sync model/provider/secret-ref (and optionally bearer tokens) across contexts.
 
-  harnessctl sync --from mba --to box --harness codex,claude --dry-run
-  harnessctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
+  hctl sync --from mba --to box --harness codex,claude --dry-run
+  hctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
 
 Bearer copy (--fields …,secret) transfers key bytes over the filesystem/SSH
 without logging them. Only fingerprints are shown. Prefer secret-ref.
@@ -58,9 +58,7 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 				fields = "model,provider"
 			}
 			for _, f := range splitCSV(fields) {
-				switch f {
-				case "model", "provider", "secret-ref", "secret":
-				default:
+				if !model.KnownSyncField(f) {
 					return exitcode.Errorf(exitcode.Usage, "unknown sync field %q", f)
 				}
 				fieldSet[f] = true
@@ -77,23 +75,20 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 				if err != nil {
 					return err
 				}
-				src, err := adapters.ReadOneFS(ad, srcFS, srcHome)
+				src, err := adapters.ReadOne(ad, srcFS, srcHome)
 				if err != nil {
 					return err
 				}
 				if src.ParseError != "" {
 					return exitcode.Errorf(exitcode.Parse, "%s source config has a parse error", src.Name)
 				}
-				d := model.Desired{}
-				if fieldSet["model"] {
-					d.Model = src.DefaultModel
+				var project []string
+				for _, name := range []string{"model", "provider", "secret-ref"} {
+					if fieldSet[name] {
+						project = append(project, name)
+					}
 				}
-				if fieldSet["provider"] {
-					d.Provider = src.Provider
-				}
-				if fieldSet["secret-ref"] {
-					d.SecretRef = src.SecretRef
-				}
+				d := model.Project(src, project...)
 				entry := prepared{}
 				if !d.Empty() {
 					entry.field, err = mutate.Preflight(mutate.Request{

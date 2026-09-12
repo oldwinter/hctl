@@ -30,14 +30,10 @@ type options struct {
 
 func (o *options) resolveHomeEnv() {
 	if o.home == "" {
-		o.home = os.Getenv("HARNESSCTL_HOME")
+		o.home = config.Getenv("HOME")
 	}
-	if o.configPath == "" {
-		o.configPath = os.Getenv("HARNESSCTL_CONFIG")
-	}
-	if o.configPath == "" {
-		o.configPath = config.DefaultPath()
-	}
+	paths := config.ResolvePaths(o.configPath)
+	o.configPath = paths.Config
 }
 
 func (o *options) loadConfig() (*config.File, error) {
@@ -49,12 +45,6 @@ func (o *options) activeContextName(cfg *config.File) string {
 		return o.contextName
 	}
 	return cfg.CurrentContext
-}
-
-func (o *options) scanHome(cfg *config.File) (contextName, home string, err error) {
-	name := o.activeContextName(cfg)
-	_, home, err = cfg.ResolveHome(name, o.home)
-	return name, home, err
 }
 
 // NewRoot builds the kubectl-style command tree.
@@ -74,6 +64,9 @@ without dispatching agents.
 Read, set, apply, and later sync harness configs. Secrets are never printed.
 
 Context = environment / machine (mba, box), not a Kubernetes cluster.`,
+		Example: `  hctl get harnesses
+  hctl doctor
+  hctl describe harness codex`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -82,8 +75,8 @@ Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 	}
 	root.PersistentFlags().BoolVar(&opts.jsonOut, "json", false, "emit JSON instead of a table")
 	root.PersistentFlags().StringVarP(&opts.output, "output", "o", "", "output format: json|wide (wide adds config paths)")
-	root.PersistentFlags().StringVar(&opts.home, "home", "", "override user home used to locate harness configs (also HARNESSCTL_HOME for compatibility)")
-	root.PersistentFlags().StringVar(&opts.configPath, "config", "", "path to hctl kubeconfig-like file (default ~/.harnessctl/config.yaml; also HARNESSCTL_CONFIG for compatibility)")
+	root.PersistentFlags().StringVar(&opts.home, "home", "", "override user home used to locate harness configs (also HCTL_HOME / HARNESSCTL_HOME)")
+	root.PersistentFlags().StringVar(&opts.configPath, "config", "", "path to hctl kubeconfig-like file (default ~/.hctl/config.yaml; also HCTL_CONFIG / HARNESSCTL_CONFIG)")
 	root.PersistentFlags().StringVar(&opts.contextName, "context", "", "context to use for this command (overrides current-context)")
 	root.PersistentFlags().BoolVar(&opts.allowManaged, "allow-managed", false, "allow a temporary write to dotfiles-managed harness destinations")
 	root.PersistentFlags().StringVar(&opts.ownershipManifest, "ownership-manifest", "", "target manifest path (absolute or ~/; overrides ownership pointer discovery)")

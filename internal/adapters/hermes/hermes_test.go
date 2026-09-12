@@ -13,7 +13,7 @@ import (
 )
 
 func TestReadHomeA(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-a"))
+	snap, err := Adapter{}.Read(fsx.Local{}, testutil.Testdata(t, "home-a"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ custom_providers:
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	snap, err := (Adapter{}).Read(home)
+	snap, err := (Adapter{}).Read(fsx.Local{}, home)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ custom_providers:
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	snap, err := (Adapter{}).Read(home)
+	snap, err := (Adapter{}).Read(fsx.Local{}, home)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ custom_providers:
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	snap, err := (Adapter{}).Read(home)
+	snap, err := (Adapter{}).Read(fsx.Local{}, home)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ custom_providers:
 }
 
 func TestEmptyModelOnboarding(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-b"))
+	snap, err := Adapter{}.Read(fsx.Local{}, testutil.Testdata(t, "home-b"))
 	if err != nil {
 		t.Fatal(err)
 	}

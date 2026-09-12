@@ -45,6 +45,11 @@ func TestVersion(t *testing.T) {
 	if !strings.Contains(out, "commit:") || !strings.Contains(out, "built:") {
 		t.Fatal(out)
 	}
+	if Commit == "unknown" || Date == "unknown" {
+		if !strings.Contains(out, "just build injects commit and date") {
+			t.Fatalf("unknown metadata needs a just-build hint:\n%s", out)
+		}
+	}
 }
 
 func TestGetMissingResource(t *testing.T) {
@@ -217,8 +222,15 @@ func TestConfigContextsAndUse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.TrimSpace(out) != "mba" {
-		t.Fatal(out)
+	if !strings.Contains(out, "mba") || !strings.Contains(out, cfgPath) {
+		t.Fatalf("current-context should name the context and the file:\n%s", out)
+	}
+	out, err = run(t, "--config", cfgPath, "--json", "config", "current-context")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `"currentContext": "mba"`) || !strings.Contains(out, cfgPath) {
+		t.Fatalf("json current-context should include config path:\n%s", out)
 	}
 	if _, err := run(t, "--config", cfgPath, "config", "use-context", "box"); err != nil {
 		t.Fatal(err)
@@ -227,8 +239,8 @@ func TestConfigContextsAndUse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.TrimSpace(out) != "box" {
-		t.Fatal(out)
+	if !strings.Contains(out, "box") || !strings.Contains(out, cfgPath) {
+		t.Fatalf("switched current-context:\n%s", out)
 	}
 }
 
@@ -330,6 +342,30 @@ func TestHARNESSCTL_HOME(t *testing.T) {
 	}
 	if !strings.Contains(out, "opencode") {
 		t.Fatal(out)
+	}
+}
+
+func TestHCTLEnvOverridesHarnessctl(t *testing.T) {
+	t.Setenv("HCTL_HOME", testutil.Testdata(t, "home-a"))
+	t.Setenv("HARNESSCTL_HOME", "/nope")
+	t.Setenv("HCTL_CONFIG", testutil.Testdata(t, "harnessctl.yaml"))
+	t.Setenv("HARNESSCTL_CONFIG", "/nope.yaml")
+	out, err := run(t, "get", "harnesses")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "opencode") {
+		t.Fatal(out)
+	}
+}
+
+func TestDiffDesiredUnknownHarness(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "desired.toml")
+	writeTestFile(t, path, "apiVersion = \"harnessctl/v1\"\n\n[harnesses.not-a-harness]\nmodel = \"x\"\n")
+	_, err := run(t, "--home", testutil.Testdata(t, "home-a"), "--config", testutil.Testdata(t, "harnessctl.yaml"), "diff", "-f", path)
+	if err == nil || !strings.Contains(err.Error(), "unknown harness") {
+		t.Fatalf("expected unknown harness, got %v", err)
 	}
 }
 
@@ -526,5 +562,88 @@ func assertDirectoryEmpty(t *testing.T, path string) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("expected no backups, got %v", entries)
+	}
+}
+
+func TestRootHelpShowsFirstCommands(t *testing.T) {
+	out, err := run(t, "--help")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"hctl get harnesses", "hctl doctor", "hctl describe harness"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("root help missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestListIsGetAlias(t *testing.T) {
+	home := testutil.Testdata(t, "home-a")
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	out, err := run(t, "--home", home, "--config", cfg, "list", "harnesses")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "codex") {
+		t.Fatal(out)
+	}
+}
+
+func TestHelpExamplesUseHctl(t *testing.T) {
+	for _, args := range [][]string{{"apply", "--help"}, {"diff", "--help"}, {"sync", "--help"}, {"completion", "--help"}} {
+		out, err := run(t, args...)
+		if err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		if strings.Contains(out, "harnessctl apply") || strings.Contains(out, "harnessctl diff") || strings.Contains(out, "harnessctl sync") || strings.Contains(out, "harnessctl completion") {
+			t.Fatalf("%v still documents harnessctl as the command to run:\n%s", args, out)
+		}
+		if !strings.Contains(out, "hctl "+args[0]) {
+			t.Fatalf("%v should show an hctl example:\n%s", args, out)
+		}
+	}
+}
+
+func TestMissingArgsExitUsageWithExample(t *testing.T) {
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"describe"}, "hctl describe harness"},
+		{[]string{"set"}, "hctl set model"},
+		{[]string{"completion"}, "hctl completion bash"},
+		{[]string{"apply"}, "hctl apply -f"},
+	}
+	for _, tc := range cases {
+		out, err := run(t, tc.args...)
+		if err == nil {
+			t.Fatalf("%v: expected usage error", tc.args)
+		}
+		if exitcode.From(err) != exitcode.Usage {
+			t.Fatalf("%v: exit = %d want %d (%v)", tc.args, exitcode.From(err), exitcode.Usage, err)
+		}
+		msg := err.Error() + out
+		if !strings.Contains(msg, tc.want) {
+			t.Fatalf("%v: missing example %q in %q / %q", tc.args, tc.want, err, out)
+		}
+	}
+}
+
+func TestDoctorParseErrorNamesDescribe(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	if err := os.WriteFile(filepath.Join(home, ".codex", "config.toml"), []byte("[[broken"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err := run(t, "--home", home, "--config", cfg, "--no-probe", "doctor")
+	if err == nil {
+		t.Fatal("expected parse error")
+	}
+	if exitcode.From(err) != exitcode.Parse {
+		t.Fatalf("exit = %d want %d (%v)", exitcode.From(err), exitcode.Parse, err)
+	}
+	msg := err.Error() + out
+	if !strings.Contains(msg, "hctl describe harness codex") {
+		t.Fatalf("doctor should name describe next:\n%s\n%s", err, out)
 	}
 }

@@ -25,6 +25,9 @@ just build / just release inject Version, Commit, and Date via -ldflags
 			fmt.Fprintf(cmd.OutOrStdout(), "%s version %s\n", name, Version)
 			fmt.Fprintf(cmd.OutOrStdout(), "commit: %s\n", Commit)
 			fmt.Fprintf(cmd.OutOrStdout(), "built:  %s\n", Date)
+			if Commit == "unknown" || Date == "unknown" {
+				fmt.Fprintln(cmd.OutOrStdout(), "hint: just build injects commit and date; plain go install does not")
+			}
 		},
 	}
 }

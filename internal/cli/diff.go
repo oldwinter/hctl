@@ -27,9 +27,9 @@ func newDiffCmd(opts *options) *cobra.Command {
 		Short: "Compare harness snapshots or a desired-state file",
 		Long: `Compare one harness between two sides, or desired state vs current:
 
-  harnessctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b
-  harnessctl diff harness codex --contexts mba,box
-  harnessctl diff -f testdata/desired.toml
+  hctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b
+  hctl diff harness codex --contexts mba,box
+  hctl diff -f testdata/desired.toml
 `,
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -54,11 +54,11 @@ func newDiffCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			sa, err := adapters.ReadOneFS(ad, fsA, homeA2)
+			sa, err := adapters.ReadOne(ad, fsA, homeA2)
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			sb, err := adapters.ReadOneFS(ad, fsB, homeB2)
+			sb, err := adapters.ReadOne(ad, fsB, homeB2)
 			if err != nil {
 				return writeErr(cmd, err)
 			}
@@ -88,11 +88,16 @@ func runDiffDesired(cmd *cobra.Command, opts *options, filename string) error {
 	if err != nil {
 		return err
 	}
+	for name := range want.Harnesses {
+		if _, err := adapters.ByName(name); err != nil {
+			return err
+		}
+	}
 	_, fsys, home, err := opts.openTarget()
 	if err != nil {
 		return err
 	}
-	snaps, err := adapters.ScanFS(fsys, home)
+	snaps, err := adapters.Scan(fsys, home)
 	if err != nil {
 		return err
 	}
@@ -140,39 +145,4 @@ func resolveDiffFS(opts *options, cfg *config.File, aName, bName, contexts, home
 		return "", "", nil, "", nil, "", err
 	}
 	return aName, bName, fsA, pathA, fsB, pathB, nil
-}
-
-func resolveDiffSides(cfg *config.File, aName, bName, contexts, homeA, homeB, homeFlag string) (labelA, labelB, pathA, pathB string, err error) {
-	if contexts != "" {
-		parts := strings.Split(contexts, ",")
-		if len(parts) != 2 {
-			return "", "", "", "", fmt.Errorf("--contexts wants exactly two names, got %q", contexts)
-		}
-		aName, bName = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-	}
-	if homeA != "" || homeB != "" {
-		if homeA == "" || homeB == "" {
-			return "", "", "", "", fmt.Errorf("--home-a and --home-b must be used together")
-		}
-		la, lb := "a", "b"
-		if aName != "" {
-			la = aName
-		}
-		if bName != "" {
-			lb = bName
-		}
-		return la, lb, homeA, homeB, nil
-	}
-	if aName == "" || bName == "" {
-		return "", "", "", "", fmt.Errorf("need --a/--b, --contexts NAME,NAME, or --home-a/--home-b")
-	}
-	_, pathA, err = cfg.ResolveHome(aName, homeFlag)
-	if err != nil {
-		return "", "", "", "", err
-	}
-	_, pathB, err = cfg.ResolveHome(bName, homeFlag)
-	if err != nil {
-		return "", "", "", "", err
-	}
-	return aName, bName, pathA, pathB, nil
 }
