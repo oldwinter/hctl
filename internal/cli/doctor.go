@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/hctl/internal/adapters"
@@ -12,7 +14,9 @@ func newDoctorCmd(opts *options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "doctor",
 		Short: "Check install, config, key, and onboarding status",
-		Args:  cobra.NoArgs,
+		Example: `  hctl doctor
+  hctl describe harness codex`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, fsys, home, err := opts.openTarget()
 			if err != nil {
@@ -32,6 +36,7 @@ func newDoctorCmd(opts *options) *cobra.Command {
 			}
 			for _, c := range checks {
 				if c.Config == "error" {
+					fmt.Fprintf(cmd.ErrOrStderr(), "Next: hctl describe harness %s\n", c.Name)
 					return exitcode.Errorf(exitcode.Parse, "doctor found parse errors")
 				}
 			}

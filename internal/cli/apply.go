@@ -23,13 +23,13 @@ func newApplyCmd(opts *options) *cobra.Command {
 		Short: "Apply a desired-state file to the current context",
 		Long: `Read desired.toml / desired.yaml and set each listed harness field.
 
-  harnessctl apply -f testdata/desired.toml --dry-run
-  harnessctl apply -f testdata/desired.toml
+  hctl apply -f testdata/desired.toml --dry-run
+  hctl apply -f testdata/desired.toml
 `,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if file == "" {
-				return exitcode.Errorf(exitcode.Usage, "apply requires -f FILE")
+				return exitcode.Errorf(exitcode.Usage, "apply requires -f FILE (example: hctl apply -f testdata/desired.toml --dry-run)")
 			}
 			want, err := desired.Load(file)
 			if err != nil {

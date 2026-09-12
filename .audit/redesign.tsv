@@ -1,0 +1,9 @@
+ts	phase	decision	why	evidence	result
+2026-09-12T17:20:00Z	frame	treat the job as figure-it-out, not a rewrite	the repo is a working 1.0 CLI with ten filed gaps, not a greenfield product	README.md, CHANGELOG.md, issues 5-13	scope set
+2026-09-12T17:21:00Z	frame	done means a user who only has hctl can inventory, diagnose, and mutate without dead-end errors, and three invariants have one owner each	kubectl-style control plane fails when help, home resolution, and apply/diff disagree	issues 5,6,7,8,9,10,11,12,13	predicate written
+2026-09-12T17:22:00Z	frame	skip lint issue 3 and batch rollback	lint is a toolchain schema fight, rollback is a new write-path product	issue 3, mutate.go ApplyPrepared	out of scope
+2026-09-12T17:23:00Z	why	Preserve fail-closed ownership, secret fingerprinting, and backup-then-rename	PR 4 and AGENTS.md already made those load-bearing	https://github.com/oldwinter/hctl/pull/4, AGENTS.md	constraint
+2026-09-12T17:24:00Z	why	Change ResolveHome, optional FSReader, dual desired-diff, and ~/.harnessctl as the only default	those four are documented split sources of truth, not intended product	issues 6,7,8,11, config.go:20, registry.go:101	constraint
+2026-09-12T17:25:00Z	why	Slack and Notion have no hctl design record	Slack search returned zero hits, Notion MCP needs auth	slack_search_public hctl harnessctl	gap noted
+2026-09-12T17:26:00Z	harness	captured baseline on 2e34d9d	need old vs new for every later check	go test ./...	tests green
+2026-09-12T17:40:00Z	ux	shipped first-run help, list alias, usage examples, doctor next step, version hint, current-context path	issues 5 9 10 12 13 are user-visible and do not need a new architecture	scripts/verify-first-run.sh, go test ./internal/cli	VERIFIED

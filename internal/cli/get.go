@@ -33,6 +33,7 @@ Examples:
 			}
 			return nil
 		},
+		Aliases:   []string{"list"},
 		ValidArgs: []string{"harnesses", "harness", "models", "model"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, fsys, home, err := opts.openTarget()

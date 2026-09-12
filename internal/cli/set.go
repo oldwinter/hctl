@@ -35,7 +35,12 @@ set provider is unsupported for claude (implicit anthropic) and grok
 
 Secrets are never printed. Unrelated keys are kept; see README for
 format-preservation caveats (JSONC comments are dropped).`,
-		Args:      cobra.ExactArgs(3),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 3 {
+				return exitcode.Errorf(exitcode.Usage, "set model|provider HARNESS VALUE (example: hctl set model codex o4-mini --dry-run)")
+			}
+			return nil
+		},
 		ValidArgs: []string{"model", "provider"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var d model.Desired

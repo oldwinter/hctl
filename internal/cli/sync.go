@@ -25,8 +25,8 @@ func newSyncCmd(opts *options) *cobra.Command {
 		Short: "Copy selected harness fields from one context to another",
 		Long: `Sync model/provider/secret-ref (and optionally bearer tokens) across contexts.
 
-  harnessctl sync --from mba --to box --harness codex,claude --dry-run
-  harnessctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
+  hctl sync --from mba --to box --harness codex,claude --dry-run
+  hctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
 
 Bearer copy (--fields …,secret) transfers key bytes over the filesystem/SSH
 without logging them. Only fingerprints are shown. Prefer secret-ref.

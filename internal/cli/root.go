@@ -74,6 +74,9 @@ without dispatching agents.
 Read, set, apply, and later sync harness configs. Secrets are never printed.
 
 Context = environment / machine (mba, box), not a Kubernetes cluster.`,
+		Example: `  hctl get harnesses
+  hctl doctor
+  hctl describe harness codex`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {

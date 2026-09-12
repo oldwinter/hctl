@@ -27,9 +27,9 @@ func newDiffCmd(opts *options) *cobra.Command {
 		Short: "Compare harness snapshots or a desired-state file",
 		Long: `Compare one harness between two sides, or desired state vs current:
 
-  harnessctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b
-  harnessctl diff harness codex --contexts mba,box
-  harnessctl diff -f testdata/desired.toml
+  hctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b
+  hctl diff harness codex --contexts mba,box
+  hctl diff -f testdata/desired.toml
 `,
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -39,9 +39,13 @@ func newConfigCmd(opts *options) *cobra.Command {
 				return writeErr(cmd, err)
 			}
 			if opts.jsonOut {
-				return render.JSON(cmd.OutOrStdout(), map[string]string{"currentContext": cfg.CurrentContext})
+				return render.JSON(cmd.OutOrStdout(), map[string]string{
+					"currentContext": cfg.CurrentContext,
+					"config":         opts.configPath,
+				})
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), cfg.CurrentContext)
+			fmt.Fprintln(cmd.OutOrStdout(), opts.configPath)
 			return nil
 		},
 	})

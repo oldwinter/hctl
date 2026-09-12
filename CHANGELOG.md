@@ -6,12 +6,21 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `hctl list` is an alias of `hctl get`.
+- Root help names the first commands. `get harnesses`, `doctor`, and `describe harness NAME`.
+
 ### Fixed
 - Help text leads with `hctl` (legacy `HARNESSCTL_*` / `~/.harnessctl` names mentioned once for compatibility).
 - `hctl get` without a resource names valid resources and exits with usage code 2.
 - `hctl version` always prints version, commit, and build date (`just build` / `just release` inject via ldflags).
 - `set --dry-run` PATH column shows the config path that would be written.
 - README / CONTRIBUTING install docs match the populated GitHub repo.
+- `apply`, `diff`, `sync`, and `completion` help examples use `hctl`, not `harnessctl`.
+- `describe`, `set`, `completion`, and `apply` missing args exit 2 and print an example.
+- `hctl version` prints a `just build` hint when commit or date is `unknown`.
+- `hctl doctor` names `hctl describe harness NAME` after a parse error.
+- `hctl config current-context` prints the resolved config path. `--json` adds `config`.
 
 ## [1.0.1] - 2026-09-06
 
