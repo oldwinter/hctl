@@ -1,0 +1,4 @@
+{
+  "name": "hctl",
+  "install": "bash .cursor/install.sh"
+}
