@@ -31,11 +31,7 @@ type commandProbePolicy interface {
 	CommandProbesAllowed() bool
 }
 
-func (a Adapter) Read(home string) (model.Snapshot, error) {
-	return a.ReadFS(fsx.Local{}, home)
-}
-
-func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	path := fsys.Join(home, ".cursor", "cli-config.json")
 	snap := model.Snapshot{Name: a.Name(), ConfigPaths: []string{path}}
 	data, err := fsys.ReadFile(path)

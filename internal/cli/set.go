@@ -25,8 +25,8 @@ func newSetCmd(opts *options) *cobra.Command {
   hctl set provider hermes custom
 
 Writes are atomic (temp + rename). Previous files are copied to unique,
-source-identifying .bak files under ~/.harnessctl/backups/ (or
-$HARNESSCTL_BACKUP_DIR).
+source-identifying .bak files under backups/ beside the resolved config
+(or $HCTL_BACKUP_DIR / $HARNESSCTL_BACKUP_DIR).
 After write the snapshot is re-read and must match the intent.
 
 set provider is unsupported for claude (implicit anthropic) and grok
@@ -95,12 +95,12 @@ func (o *options) openNamed(cfg *config.File, name string) (string, fsx.FS, stri
 	if err != nil {
 		return "", nil, "", err
 	}
-	fsys, home, err := remote.Dial(nc, o.home)
+	t, err := remote.Dial(nc, o.home)
 	if err != nil {
 		return "", nil, "", err
 	}
 	if o.noProbe {
-		fsys = fsx.WithoutCommandProbes(fsys)
+		t.FS = fsx.WithoutCommandProbes(t.FS)
 	}
-	return name, fsys, home, nil
+	return t.Name, t.FS, t.Home, nil
 }

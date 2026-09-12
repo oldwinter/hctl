@@ -40,7 +40,7 @@ Examples:
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			snaps, err := adapters.ScanFS(fsys, home)
+			snaps, err := adapters.Scan(fsys, home)
 			if err != nil {
 				return writeErr(cmd, err)
 			}

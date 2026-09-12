@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/render"
 	"github.com/oldwinter/hctl/internal/secret"
 	"github.com/oldwinter/hctl/internal/testutil"
@@ -12,7 +13,7 @@ import (
 
 func TestScanNeverLeaksFixtures(t *testing.T) {
 	for _, home := range []string{"home-a", "home-b"} {
-		snaps, err := Scan(testutil.Testdata(t, home))
+		snaps, err := Scan(fsx.Local{}, testutil.Testdata(t, home))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -47,7 +48,7 @@ func TestScanNeverLeaksFixtures(t *testing.T) {
 }
 
 func TestDoctorHomeAReady(t *testing.T) {
-	snaps, err := Scan(testutil.Testdata(t, "home-a"))
+	snaps, err := Scan(fsx.Local{}, testutil.Testdata(t, "home-a"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +65,7 @@ func TestDoctorHomeAReady(t *testing.T) {
 }
 
 func TestDoctorKeyDrift(t *testing.T) {
-	snaps, err := Scan(testutil.Testdata(t, "home-drift"))
+	snaps, err := Scan(fsx.Local{}, testutil.Testdata(t, "home-drift"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +90,7 @@ func TestDoctorKeyDrift(t *testing.T) {
 }
 
 func TestDoctorThemeOnboarding(t *testing.T) {
-	snaps, err := Scan(testutil.Testdata(t, "home-theme"))
+	snaps, err := Scan(fsx.Local{}, testutil.Testdata(t, "home-theme"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +102,7 @@ func TestDoctorThemeOnboarding(t *testing.T) {
 }
 
 func TestDoctorHomeEmptyNeedsOnboarding(t *testing.T) {
-	snaps, err := Scan(testutil.Testdata(t, "home-empty"))
+	snaps, err := Scan(fsx.Local{}, testutil.Testdata(t, "home-empty"))
 	if err != nil {
 		t.Fatal(err)
 	}

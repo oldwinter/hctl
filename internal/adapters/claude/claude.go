@@ -27,11 +27,7 @@ type file struct {
 	Env   map[string]string `json:"env"`
 }
 
-func (a Adapter) Read(home string) (model.Snapshot, error) {
-	return a.ReadFS(fsx.Local{}, home)
-}
-
-func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	path := fsys.Join(home, ".claude", "settings.json")
 	onboardPath := fsys.Join(home, ".claude.json")
 	snap := model.Snapshot{Name: a.Name(), ConfigPaths: []string{path, onboardPath}, Provider: "anthropic"}
@@ -125,9 +121,16 @@ func claudeOnboardingComplete(raw map[string]any) bool {
 	return false
 }
 
-func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
+func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
 	if d.Provider != "" {
-		return nil, exitcode.Errorf(exitcode.Usage, "set provider is unsupported for claude (provider is implicit anthropic); use set model")
+		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for claude (provider is implicit anthropic); use set model")
+	}
+	return nil
+}
+
+func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
+	if err := a.ValidateDesired(fsys, home, d); err != nil {
+		return nil, err
 	}
 	path := fsys.Join(home, ".claude", "settings.json")
 	data, err := fsx.ReadMaybe(fsys, path)

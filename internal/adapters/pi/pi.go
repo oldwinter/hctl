@@ -50,11 +50,7 @@ type authCredential struct {
 	Expires *float64          `json:"expires"`
 }
 
-func (a Adapter) Read(home string) (model.Snapshot, error) {
-	return a.ReadFS(fsx.Local{}, home)
-}
-
-func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	setPath := fsys.Join(home, ".pi", "agent", "settings.json")
 	modPath := fsys.Join(home, ".pi", "agent", "models.json")
 	authPath := fsys.Join(home, ".pi", "agent", "auth.json")

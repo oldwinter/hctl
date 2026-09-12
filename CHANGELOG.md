@@ -9,6 +9,15 @@ Versioning: [SemVer](https://semver.org/).
 ### Added
 - `hctl list` is an alias of `hctl get`.
 - Root help names the first commands. `get harnesses`, `doctor`, and `describe harness NAME`.
+- Config identity provenance: `--config` / env / existing `~/.hctl/config.yaml` / existing `~/.harnessctl/config.yaml` / else create `~/.hctl/config.yaml`. Writes stay in place; legacy files are never copied or deleted.
+- Preferred env names `HCTL_HOME`, `HCTL_CONFIG`, `HCTL_BACKUP_DIR`, `HCTL_SSH` (legacy `HARNESSCTL_*` still works).
+
+### Changed
+- `remote.Dial` is the only home resolver. Dead `ResolveHome` / local-only adapter `Read(home)` / `FSReader` fallbacks are gone.
+- Adapter `Read` always takes `(fs, home)`. Inventory and writes share one desired-field table (`model.ChangesFromDesired`).
+- Already-converged `apply` / `set` skip backup and write. `config.Save` is backup → temp → rename → re-read.
+- `diff -f` rejects unknown harness names the same way `apply` does.
+- Claude and Grok refuse `set provider` in `ValidateDesired`, not in a mutate special case.
 
 ### Fixed
 - Help text leads with `hctl` (legacy `HARNESSCTL_*` / `~/.harnessctl` names mentioned once for compatibility).

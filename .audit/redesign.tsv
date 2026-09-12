@@ -7,3 +7,6 @@ ts	phase	decision	why	evidence	result
 2026-09-12T17:25:00Z	why	Slack and Notion have no hctl design record	Slack search returned zero hits, Notion MCP needs auth	slack_search_public hctl harnessctl	gap noted
 2026-09-12T17:26:00Z	harness	captured baseline on 2e34d9d	need old vs new for every later check	go test ./...	tests green
 2026-09-12T17:40:00Z	ux	shipped first-run help, list alias, usage examples, doctor next step, version hint, current-context path	issues 5 9 10 12 13 are user-visible and do not need a new architecture	scripts/verify-first-run.sh, go test ./internal/cli	VERIFIED
+2026-09-12T17:55:00Z	arena	pick candidate 1 plus grafts from 2/3/4	27/30; best landable enforcement without silent migration or remote rewrite	.audit/redesign.tsv judge	chosen
+2026-09-12T18:10:00Z	arch	one owner each for Dial, Adapter.Read, ChangesFromDesired, ResolvePaths	issues 6 7 8 11 were four split sources of truth	internal/{remote,adapters,model,config}	implemented
+2026-09-12T18:20:00Z	verify	go test ./... and scripts/verify-first-run.sh	prove the four owners without silent migration	go test, scripts/verify-first-run.sh	VERIFIED

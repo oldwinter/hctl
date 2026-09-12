@@ -345,6 +345,30 @@ func TestHARNESSCTL_HOME(t *testing.T) {
 	}
 }
 
+func TestHCTLEnvOverridesHarnessctl(t *testing.T) {
+	t.Setenv("HCTL_HOME", testutil.Testdata(t, "home-a"))
+	t.Setenv("HARNESSCTL_HOME", "/nope")
+	t.Setenv("HCTL_CONFIG", testutil.Testdata(t, "harnessctl.yaml"))
+	t.Setenv("HARNESSCTL_CONFIG", "/nope.yaml")
+	out, err := run(t, "get", "harnesses")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "opencode") {
+		t.Fatal(out)
+	}
+}
+
+func TestDiffDesiredUnknownHarness(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "desired.toml")
+	writeTestFile(t, path, "apiVersion = \"harnessctl/v1\"\n\n[harnesses.not-a-harness]\nmodel = \"x\"\n")
+	_, err := run(t, "--home", testutil.Testdata(t, "home-a"), "--config", testutil.Testdata(t, "harnessctl.yaml"), "diff", "-f", path)
+	if err == nil || !strings.Contains(err.Error(), "unknown harness") {
+		t.Fatalf("expected unknown harness, got %v", err)
+	}
+}
+
 func TestManagedDestinationGuardAppliesToDryRunAndExplicitOverride(t *testing.T) {
 	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
 	backupDir := t.TempDir()

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -52,24 +53,22 @@ func Parse(data []byte, ext string) (*model.DesiredFile, error) {
 	return &f, nil
 }
 
-// DiffAgainst returns changes from current snapshots to desired.
+// DiffAgainst returns changes from current snapshots to desired using the
+// shared field table. Unknown harness names are still compared against an
+// empty snapshot; callers that must fail closed (diff -f, apply) use ByName.
 func DiffAgainst(want *model.DesiredFile, snaps []model.Snapshot) []model.Change {
 	byName := map[string]model.Snapshot{}
 	for _, s := range snaps {
 		byName[s.Name] = s
 	}
+	names := make([]string, 0, len(want.Harnesses))
+	for name := range want.Harnesses {
+		names = append(names, name)
+	}
+	sort.Strings(names)
 	var out []model.Change
-	for name, d := range want.Harnesses {
-		cur := byName[name]
-		if d.Model != "" && d.Model != cur.DefaultModel {
-			out = append(out, model.Change{Harness: name, Field: "model", From: cur.DefaultModel, To: d.Model})
-		}
-		if d.Provider != "" && d.Provider != cur.Provider {
-			out = append(out, model.Change{Harness: name, Field: "provider", From: cur.Provider, To: d.Provider})
-		}
-		if d.SecretRef != "" && d.SecretRef != cur.SecretRef {
-			out = append(out, model.Change{Harness: name, Field: "secretRef", From: cur.SecretRef, To: d.SecretRef})
-		}
+	for _, name := range names {
+		out = append(out, model.ChangesFromDesired(name, byName[name], want.Harnesses[name])...)
 	}
 	return out
 }

@@ -34,7 +34,7 @@ func newDescribeCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			snap, err := adapters.ReadOneFS(a, fsys, home)
+			snap, err := adapters.ReadOne(a, fsys, home)
 			if err != nil {
 				return writeErr(cmd, err)
 			}

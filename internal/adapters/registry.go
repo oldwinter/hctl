@@ -16,18 +16,14 @@ import (
 	"github.com/oldwinter/hctl/internal/model"
 )
 
-// Adapter reads one harness's on-disk config into the unified snapshot.
+// Adapter reads one harness's config through the target filesystem.
+// Read must take an FS; a local-only Read(home) is not an Adapter.
 type Adapter interface {
 	Name() string
 	Aliases() []string
 	BinaryNames() []string
 	ConfigRelPaths() []string
-	Read(home string) (model.Snapshot, error)
-}
-
-// FSReader reads via an abstract filesystem (local or SSH).
-type FSReader interface {
-	ReadFS(fsys fsx.FS, home string) (model.Snapshot, error)
+	Read(fsys fsx.FS, home string) (model.Snapshot, error)
 }
 
 // All returns adapters in display order.
@@ -69,18 +65,14 @@ func Names() []string {
 	return out
 }
 
-func Scan(home string) ([]model.Snapshot, error) {
-	return ScanFS(fsx.Local{}, home)
-}
-
-func ScanFS(fsys fsx.FS, home string) ([]model.Snapshot, error) {
+func Scan(fsys fsx.FS, home string) ([]model.Snapshot, error) {
 	home = strings.TrimSpace(home)
 	if home == "" {
 		return nil, fmt.Errorf("home is empty")
 	}
 	var out []model.Snapshot
 	for _, a := range All() {
-		snap, err := ReadOneFS(a, fsys, home)
+		snap, err := ReadOne(a, fsys, home)
 		if err != nil {
 			return nil, err
 		}
@@ -89,20 +81,8 @@ func ScanFS(fsys fsx.FS, home string) ([]model.Snapshot, error) {
 	return out, nil
 }
 
-func ReadOne(a Adapter, home string) (model.Snapshot, error) {
-	return ReadOneFS(a, fsx.Local{}, home)
-}
-
-func ReadOneFS(a Adapter, fsys fsx.FS, home string) (model.Snapshot, error) {
-	var (
-		snap model.Snapshot
-		err  error
-	)
-	if r, ok := a.(FSReader); ok {
-		snap, err = r.ReadFS(fsys, home)
-	} else {
-		snap, err = a.Read(home)
-	}
+func ReadOne(a Adapter, fsys fsx.FS, home string) (model.Snapshot, error) {
+	snap, err := a.Read(fsys, home)
 	if err != nil {
 		return model.Snapshot{}, err
 	}

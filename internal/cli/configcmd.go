@@ -97,7 +97,7 @@ func newConfigCmd(opts *options) *cobra.Command {
 	cmd.AddCommand(setCtx)
 	cmd.AddCommand(&cobra.Command{
 		Use:   "use-context NAME",
-		Short: "Set the current context (writes the hctl config file under ~/.harnessctl)",
+		Short: "Set the current context (writes the resolved hctl config file)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := opts.loadConfig()

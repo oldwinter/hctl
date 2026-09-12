@@ -4,12 +4,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/secret"
 	"github.com/oldwinter/hctl/internal/testutil"
 )
 
 func TestReadHomeAJSONC(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-a"))
+	snap, err := Adapter{}.Read(fsx.Local{}, testutil.Testdata(t, "home-a"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +32,7 @@ func TestReadHomeAJSONC(t *testing.T) {
 }
 
 func TestReadHomeBEnvRefAndProvidersKey(t *testing.T) {
-	snap, err := Adapter{}.Read(testutil.Testdata(t, "home-b"))
+	snap, err := Adapter{}.Read(fsx.Local{}, testutil.Testdata(t, "home-b"))
 	if err != nil {
 		t.Fatal(err)
 	}

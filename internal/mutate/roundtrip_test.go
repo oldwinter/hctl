@@ -35,7 +35,7 @@ func TestAllWritersSetModel(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		snap, err := adapters.ReadOne(ad, home)
+		snap, err := adapters.ReadOne(ad, fsx.Local{}, home)
 		if err != nil {
 			t.Fatal(err)
 		}

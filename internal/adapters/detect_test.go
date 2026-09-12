@@ -43,7 +43,7 @@ func TestDetectBinaryFSUsesRemoteCommandV(t *testing.T) {
 	}
 }
 
-func TestReadOneFSInstalledUsesRemoteLookPath(t *testing.T) {
+func TestReadOneInstalledUsesRemoteLookPath(t *testing.T) {
 	home := testutil.Testdata(t, "home-a")
 	called := false
 	fsys := fsx.SSH{
@@ -65,7 +65,7 @@ func TestReadOneFSInstalledUsesRemoteLookPath(t *testing.T) {
 			return out, err
 		},
 	}
-	snap, err := ReadOneFS(codex.Adapter{}, fsys, home)
+	snap, err := ReadOne(codex.Adapter{}, fsys, home)
 	if err != nil {
 		t.Fatal(err)
 	}

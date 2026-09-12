@@ -41,11 +41,7 @@ type customModel struct {
 	APIKey   string `json:"apiKey"`
 }
 
-func (a Adapter) Read(home string) (model.Snapshot, error) {
-	return a.ReadFS(fsx.Local{}, home)
-}
-
-func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	path := fsys.Join(home, ".factory", "settings.json")
 	authPath := fsys.Join(home, ".factory", "auth.json")
 	snap := model.Snapshot{Name: a.Name(), ConfigPaths: []string{path, authPath}}

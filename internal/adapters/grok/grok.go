@@ -36,11 +36,7 @@ type modelSection struct {
 	Reasoning  string `toml:"reasoning_effort"`
 }
 
-func (a Adapter) Read(home string) (model.Snapshot, error) {
-	return a.ReadFS(fsx.Local{}, home)
-}
-
-func (a Adapter) ReadFS(fsys fsx.FS, home string) (model.Snapshot, error) {
+func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	path := fsys.Join(home, ".grok", "config.toml")
 	snap := model.Snapshot{Name: a.Name(), ConfigPaths: []string{path}}
 	data, err := fsys.ReadFile(path)
@@ -118,14 +114,21 @@ func firstEnvKey(v any) string {
 	return ""
 }
 
+func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
+	if d.Provider != "" {
+		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for grok (inferred from base_url); use set model")
+	}
+	return nil
+}
+
 func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
+	if err := a.ValidateDesired(fsys, home, d); err != nil {
+		return nil, err
+	}
 	path := fsys.Join(home, ".grok", "config.toml")
 	data, err := fsx.ReadMaybe(fsys, path)
 	if err != nil {
 		return nil, err
-	}
-	if d.Provider != "" {
-		return nil, exitcode.Errorf(exitcode.Usage, "set provider is unsupported for grok (inferred from base_url); use set model")
 	}
 	if d.Model != "" {
 		data, err = edit.SetTOML(data, []string{"models", "default"}, d.Model)
@@ -134,7 +137,7 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 		}
 	}
 	if d.SecretRef != "" {
-		snap, _ := a.ReadFS(fsys, home)
+		snap, _ := a.Read(fsys, home)
 		name := d.Model
 		if name == "" {
 			name = snap.DefaultModel
@@ -177,7 +180,7 @@ func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
 	if err != nil {
 		return err
 	}
-	snap, _ := a.ReadFS(fsys, home)
+	snap, _ := a.Read(fsys, home)
 	name := snap.DefaultModel
 	if name == "" {
 		name = "default"

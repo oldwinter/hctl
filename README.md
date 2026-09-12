@@ -66,11 +66,21 @@ hctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses -o w
 hctl --home testdata/home-a --config testdata/harnessctl.yaml --json get models
 ```
 
-环境变量（兼容旧名）：`HARNESSCTL_HOME`、`HARNESSCTL_CONFIG`、`HARNESSCTL_BACKUP_DIR`、`HARNESSCTL_SSH=0`（测试时禁止真 SSH）。配置目录默认仍是 `~/.harnessctl`。
+环境变量优先读 `HCTL_*`，再回退旧名 `HARNESSCTL_*`：`HOME`、`CONFIG`、`BACKUP_DIR`、`SSH=0`（测试时禁止真 SSH）。
+
+配置文件只选一个，就地读写，**不会**复制或删除 `~/.harnessctl`：
+
+1. `--config`
+2. `$HCTL_CONFIG` / `$HARNESSCTL_CONFIG`
+3. 已存在的 `~/.hctl/config.yaml`
+4. 已存在的 `~/.harnessctl/config.yaml`
+5. 否则新建 `~/.hctl/config.yaml`
+
+备份目录：`$HCTL_BACKUP_DIR` / `$HARNESSCTL_BACKUP_DIR`，否则是解析后配置文件旁边的 `backups/`。
 
 ## 配置 mba / box
 
-默认文件：`~/.harnessctl/config.yaml`。
+默认文件：`~/.hctl/config.yaml`（若只有旧文件则继续用 `~/.harnessctl/config.yaml`）。
 
 ```bash
 hctl config set-context mba --kind local
@@ -94,7 +104,7 @@ contexts:
       identityFile: /Users/you/.ssh/id_ed25519
 ```
 
-SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`，整段命令 10s 超时。远程读写用 `cat` / `mv`；`doctor` 用远程 `command -v` 判断是否安装（不远程跑 `--version`）。备份仍落在**本机** `~/.harnessctl/backups/`。
+SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`，整段命令 10s 超时。远程读写用 `cat` / `mv`；`doctor` 用远程 `command -v` 判断是否安装（不远程跑 `--version`）。备份仍落在**本机**（见上面的备份目录规则）。
 
 ## 命令矩阵
 

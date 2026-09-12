@@ -59,11 +59,6 @@ type Desired struct {
 	SecretRef string `json:"secretRef,omitempty" toml:"secretRef,omitempty" yaml:"secretRef,omitempty"`
 }
 
-// Empty reports whether any write field is set.
-func (d Desired) Empty() bool {
-	return d.Model == "" && d.Provider == "" && d.SecretRef == ""
-}
-
 // DesiredFile is the apply/diff -f document.
 type DesiredFile struct {
 	APIVersion string             `json:"apiVersion" toml:"apiVersion" yaml:"apiVersion"`
