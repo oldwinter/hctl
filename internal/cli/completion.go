@@ -39,7 +39,7 @@ func newCompletionCmd() *cobra.Command {
 			case "powershell":
 				return cmd.Root().GenPowerShellCompletionWithDesc(cmd.OutOrStdout())
 			default:
-				return cmd.Help()
+				return exitcode.Errorf(exitcode.Usage, "unknown shell %q (want bash|zsh|fish|powershell)", args[0])
 			}
 		},
 	}

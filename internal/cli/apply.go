@@ -78,7 +78,7 @@ func newApplyCmd(opts *options) *cobra.Command {
 				rep.Backups = append(rep.Backups, one.Backups...)
 				rep.Verified = rep.Verified || one.Verified
 			}
-			if opts.jsonOut {
+			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), rep)
 			}
 			return render.ApplyReport(cmd.OutOrStdout(), rep)

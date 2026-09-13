@@ -27,7 +27,7 @@ func newDoctorCmd(opts *options) *cobra.Command {
 				return writeErr(cmd, err)
 			}
 			checks := adapters.Doctor(snaps)
-			if opts.jsonOut {
+			if opts.wantJSON() {
 				if err := render.JSON(cmd.OutOrStdout(), checks); err != nil {
 					return err
 				}

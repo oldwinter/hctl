@@ -151,7 +151,7 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 				Secrets []model.SecretCopy `json:"secrets,omitempty"`
 			}
 			payload := out{ApplyReport: rep, Secrets: copies}
-			if opts.jsonOut {
+			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), payload)
 			}
 			if err := render.ApplyReport(cmd.OutOrStdout(), rep); err != nil {

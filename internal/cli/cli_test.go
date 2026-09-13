@@ -260,6 +260,9 @@ func TestApplyAndDiffDesired(t *testing.T) {
 	if !strings.Contains(out, "o4-mini") {
 		t.Fatal(out)
 	}
+	if !strings.Contains(out, filepath.Join(home, ".codex", "config.toml")) {
+		t.Fatalf("diff -f PATH missing config path:\n%s", out)
+	}
 	out, err = run(t, "--home", home, "--config", cfg, "apply", "-f", desired, "--dry-run")
 	if err != nil {
 		t.Fatal(err)
@@ -570,7 +573,7 @@ func TestRootHelpShowsFirstCommands(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"hctl get harnesses", "hctl doctor", "hctl describe harness"} {
+	for _, want := range []string{"hctl get harnesses", "hctl get harness codex", "hctl doctor", "hctl describe harness"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("root help missing %q:\n%s", want, out)
 		}
@@ -630,6 +633,123 @@ func TestMissingArgsExitUsageWithExample(t *testing.T) {
 		if !strings.Contains(msg, tc.want) {
 			t.Fatalf("%v: missing example %q in %q / %q", tc.args, tc.want, err, out)
 		}
+	}
+}
+
+func TestOutputJSONFlagParity(t *testing.T) {
+	home := testutil.Testdata(t, "home-a")
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	cases := [][]string{
+		{"--home", home, "--config", cfg, "-o", "json", "get", "models"},
+		{"--home", home, "--config", cfg, "-o", "json", "doctor"},
+		{"--home", home, "--config", cfg, "-o", "json", "describe", "harness", "codex"},
+		{"--home", home, "--config", cfg, "-o", "json", "set", "model", "codex", "o4-mini", "--dry-run"},
+		{"-o", "json", "version"},
+	}
+	for _, args := range cases {
+		out, err := run(t, args...)
+		if err != nil {
+			t.Fatalf("%v: %v\n%s", args, err, out)
+		}
+		trim := strings.TrimSpace(out)
+		if !strings.HasPrefix(trim, "{") && !strings.HasPrefix(trim, "[") {
+			t.Fatalf("%v: want JSON, got:\n%s", args, out)
+		}
+	}
+}
+
+func TestUnknownOutputUsage(t *testing.T) {
+	_, err := run(t, "-o", "yaml", "get", "harnesses")
+	if err == nil {
+		t.Fatal("expected usage error")
+	}
+	if exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("exit = %d want %d (%v)", exitcode.From(err), exitcode.Usage, err)
+	}
+	if !strings.Contains(err.Error(), "json|wide") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestGetHarnessName(t *testing.T) {
+	home := testutil.Testdata(t, "home-a")
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	out, err := run(t, "--home", home, "--config", cfg, "--no-probe", "get", "harness", "codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "codex") {
+		t.Fatal(out)
+	}
+	if strings.Contains(out, "claude") {
+		t.Fatalf("get harness NAME should be one row:\n%s", out)
+	}
+	out, err = run(t, "--home", home, "--config", cfg, "--no-probe", "-o", "json", "get", "harness", "cursor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `"name": "cursor-agent"`) {
+		t.Fatal(out)
+	}
+	if strings.HasPrefix(strings.TrimSpace(out), "[") {
+		t.Fatalf("get harness NAME -o json should be one object:\n%s", out)
+	}
+}
+
+func TestEmptyGetHintsWide(t *testing.T) {
+	home := testutil.Testdata(t, "home-empty")
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	out, err := run(t, "--home", home, "--config", cfg, "--no-probe", "get", "harnesses")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "Next: hctl get harnesses -o wide") {
+		t.Fatalf("empty inventory should name wide:\n%s", out)
+	}
+}
+
+func TestCompletionUnknownShell(t *testing.T) {
+	_, err := run(t, "completion", "tcsh")
+	if err == nil {
+		t.Fatal("expected usage error")
+	}
+	if exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("exit = %d want %d (%v)", exitcode.From(err), exitcode.Usage, err)
+	}
+}
+
+func TestDescribeUnknownResourceUsage(t *testing.T) {
+	_, err := run(t, "describe", "pod", "foo")
+	if err == nil {
+		t.Fatal("expected usage error")
+	}
+	if exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("exit = %d want %d (%v)", exitcode.From(err), exitcode.Usage, err)
+	}
+}
+
+func TestCurrentContextMissingFileNote(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	out, err := run(t, "--config", cfg, "config", "current-context")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "mba") || !strings.Contains(out, "not created yet") {
+		t.Fatalf("missing config should say so:\n%s", out)
+	}
+}
+
+func TestSetContextHintsUseContext(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	out, err := run(t, "--config", cfg, "config", "set-context", "cloud", "--kind", "local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `Context "cloud" saved.`) {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "hctl config use-context cloud") {
+		t.Fatalf("set-context should name use-context:\n%s", out)
 	}
 }
 

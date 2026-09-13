@@ -40,7 +40,7 @@ func newDiffCmd(opts *options) *cobra.Command {
 				return exitcode.Errorf(exitcode.Usage, "diff harness NAME (or diff -f FILE) (example: hctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b)")
 			}
 			if !isHarnessResource(args[0]) {
-				return writeErr(cmd, fmt.Errorf("unknown resource %q (want harness)", args[0]))
+				return writeErr(cmd, exitcode.Errorf(exitcode.Usage, "unknown resource %q (want harness)", args[0]))
 			}
 			ad, err := adapters.ByName(args[1])
 			if err != nil {
@@ -63,7 +63,7 @@ func newDiffCmd(opts *options) *cobra.Command {
 				return writeErr(cmd, err)
 			}
 			diffs := model.DiffSnapshots(sa, sb)
-			if opts.jsonOut {
+			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), map[string]any{
 					"harness": ad.Name(),
 					"a":       labelA,
@@ -102,7 +102,7 @@ func runDiffDesired(cmd *cobra.Command, opts *options, filename string) error {
 		return err
 	}
 	changes := desired.DiffAgainst(want, snaps)
-	if opts.jsonOut {
+	if opts.wantJSON() {
 		return render.JSON(cmd.OutOrStdout(), map[string]any{
 			"file":    filename,
 			"changes": changes,

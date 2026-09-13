@@ -3,13 +3,13 @@ package model
 import "testing"
 
 func TestChangesFromDesired(t *testing.T) {
-	snap := Snapshot{Name: "codex", DefaultModel: "old", Provider: "custom", SecretRef: "OLD_KEY"}
+	snap := Snapshot{Name: "codex", DefaultModel: "old", Provider: "custom", SecretRef: "OLD_KEY", ConfigPaths: []string{"/tmp/codex.toml"}}
 	d := Desired{Model: "new", Provider: "custom", SecretRef: "NEW_KEY"}
 	ch := ChangesFromDesired("codex", snap, d)
 	if len(ch) != 2 {
 		t.Fatalf("changes = %#v", ch)
 	}
-	if ch[0].Field != "model" || ch[0].From != "old" || ch[0].To != "new" {
+	if ch[0].Field != "model" || ch[0].From != "old" || ch[0].To != "new" || ch[0].Path != "/tmp/codex.toml" {
 		t.Fatalf("model = %#v", ch[0])
 	}
 	if ch[1].Field != "secretRef" || ch[1].To != "NEW_KEY" {

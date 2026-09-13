@@ -1,8 +1,8 @@
 # JSON schemas (stable fields)
 
-`--json` output is redacted (no `sk-` tokens). Field names below are the 1.0 contract.
+`--json` / `-o json` output is redacted (no `sk-` tokens). Field names below are the 1.0 contract.
 
-## Snapshot (`get harnesses`, `describe harness`)
+## Snapshot (`get harnesses`, `get harness NAME`, `describe harness`)
 
 | field | type | notes |
 | --- | --- | --- |

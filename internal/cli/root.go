@@ -3,10 +3,12 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/hctl/internal/config"
+	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/ownership"
 )
 
@@ -47,6 +49,23 @@ func (o *options) activeContextName(cfg *config.File) string {
 	return cfg.CurrentContext
 }
 
+func (o *options) wantJSON() bool {
+	return o.jsonOut || strings.EqualFold(strings.TrimSpace(o.output), "json")
+}
+
+func (o *options) wantWide() bool {
+	return !o.wantJSON() && strings.EqualFold(strings.TrimSpace(o.output), "wide")
+}
+
+func (o *options) validateOutput() error {
+	switch strings.ToLower(strings.TrimSpace(o.output)) {
+	case "", "json", "wide":
+		return nil
+	default:
+		return exitcode.Errorf(exitcode.Usage, "unknown output %q (want json|wide)", o.output)
+	}
+}
+
 // NewRoot builds the kubectl-style command tree.
 func NewRoot() *cobra.Command {
 	opts := &options{}
@@ -65,12 +84,15 @@ Read, set, apply, and later sync harness configs. Secrets are never printed.
 
 Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 		Example: `  hctl get harnesses
+  hctl get harnesses -o json
+  hctl get harness codex
   hctl doctor
   hctl describe harness codex`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			opts.resolveHomeEnv()
+			return opts.validateOutput()
 		},
 	}
 	root.PersistentFlags().BoolVar(&opts.jsonOut, "json", false, "emit JSON instead of a table")
@@ -82,7 +104,7 @@ Context = environment / machine (mba, box), not a Kubernetes cluster.`,
 	root.PersistentFlags().StringVar(&opts.ownershipManifest, "ownership-manifest", "", "target manifest path (absolute or ~/; overrides ownership pointer discovery)")
 	root.PersistentFlags().BoolVar(&opts.noProbe, "no-probe", false, "inspect config without version or login subprocess probes")
 
-	root.AddCommand(newVersionCmd())
+	root.AddCommand(newVersionCmd(opts))
 	root.AddCommand(newConfigCmd(opts))
 	root.AddCommand(newGetCmd(opts))
 	root.AddCommand(newDescribeCmd(opts))
