@@ -7,6 +7,7 @@
 | field | type | notes |
 | --- | --- | --- |
 | name | string | official harness id |
+| nameAliases | string[] | official aliases (`openai-codex`, `claude-code`, …) |
 | installed | bool | binary on PATH (local) or remote `command -v` (SSH) |
 | installedPath | string | |
 | version | string | cheap `--version` probe (local only; skipped over SSH and with `--no-probe`) |
@@ -32,9 +33,9 @@
 
 ## ApplyReport (`set`, `apply`, `sync`)
 
-`dryRun`, `changes[]` (`harness`, `field`, `from`, `to`, `path`), `backups[]`, `verified`.
+`dryRun`, `changes[]` (`harness`, `field`, `from`, `to`, `path`), `backups[]`, `verified`, optional `secrets[]` and `notes[]`.
 
-Sync may add `secrets[]`: `harness`, `fromFingerprint`, `toFingerprint`, `secretRef`, `copied`, `action`, `backups[]`.
+`secrets[]`: `harness`, `fromFingerprint`, `toFingerprint`, `secretRef`, `copied`, `action`, `backups[]`. Text `sync` prints secret action lines on stdout with the apply report (not stderr).
 
 ## DesiredFile (`apply -f`, `diff -f`)
 

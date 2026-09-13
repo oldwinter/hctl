@@ -168,6 +168,29 @@ func TestSetProviderUnsupportedClaudeAndGrok(t *testing.T) {
 	}
 }
 
+func TestApplyClaudeBacksUpOnlyWrittenSettings(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	bak := t.TempDir()
+	rep, err := Apply(Request{
+		Adapter:   claude.Adapter{},
+		FS:        fsx.Local{},
+		Home:      home,
+		BackupDir: bak,
+		Desired:   model.Desired{Model: "claude-opus-4"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Backups) != 1 || !strings.Contains(rep.Backups[0], "settings.json") {
+		t.Fatalf("backups=%v", rep.Backups)
+	}
+	for _, p := range rep.Backups {
+		if strings.Contains(p, ".claude.json") {
+			t.Fatalf("backed up unchanged onboarding file: %v", rep.Backups)
+		}
+	}
+}
+
 func TestPreflightRejectsParseErrorBeforeBackupOrWrite(t *testing.T) {
 	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
 	backupDir := t.TempDir()

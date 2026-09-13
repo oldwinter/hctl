@@ -38,6 +38,53 @@ func TestHarnessesTableUsesFingerprintOnly(t *testing.T) {
 	}
 }
 
+func TestDoctorTableIncludesDriftAndRedacts(t *testing.T) {
+	var buf strings.Builder
+	err := DoctorTable(&buf, []model.DoctorCheck{{
+		Name: "codex", Installed: "ok", Config: "ok", Key: "ok", Onboarding: "ok",
+		Drift: "key-drift", Message: "key drift on host example.com (codex) sk-test-aaa",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "DRIFT") || !strings.Contains(out, "key-drift") {
+		t.Fatal(out)
+	}
+	if strings.Contains(out, "sk-test-aaa") {
+		t.Fatal(out)
+	}
+}
+
+func TestApplyReportPrintsSecretOnSameWriter(t *testing.T) {
+	var buf strings.Builder
+	err := ApplyReport(&buf, model.ApplyReport{
+		Secrets: []model.SecretCopy{{
+			Harness: "codex", Action: "bearer", From: "deadbeef", To: "cafebabe", Copied: true,
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if strings.Contains(out, "no changes") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "secret codex action=bearer") || !strings.Contains(out, "from=sha256:deadbeef") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "verified: ok") {
+		t.Fatal(out)
+	}
+}
+
+func TestSecretCellShowsFingerprintAndEnvRef(t *testing.T) {
+	got := secretCell(model.Snapshot{SecretFingerprint: "deadbeef", SecretRef: "OPENAI_API_KEY"})
+	if got != "sha256:deadbeef env:OPENAI_API_KEY" {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestJSONRedactsIfSecretSlipsIn(t *testing.T) {
 	var buf strings.Builder
 	if err := JSON(&buf, map[string]string{"oops": "sk-test-aaa"}); err != nil {

@@ -328,7 +328,7 @@ func TestSetModelRoundTrip(t *testing.T) {
 func TestSetProviderUnsupported(t *testing.T) {
 	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
 	cfg := testutil.Testdata(t, "harnessctl.yaml")
-	for _, name := range []string{"claude", "grok"} {
+	for _, name := range []string{"claude", "grok", "droid"} {
 		_, err := run(t, "--home", home, "--config", cfg, "set", "provider", name, "custom", "--dry-run")
 		if err == nil {
 			t.Fatalf("%s: expected error", name)
@@ -673,6 +673,9 @@ func TestUnknownOutputUsage(t *testing.T) {
 	if !strings.Contains(err.Error(), "json|wide") {
 		t.Fatalf("err = %v", err)
 	}
+	if !strings.Contains(err.Error(), "Next: hctl get harnesses -o json") {
+		t.Fatalf("unknown output should name next: %v", err)
+	}
 }
 
 func TestGetHarnessName(t *testing.T) {
@@ -776,6 +779,26 @@ func TestDoctorParseErrorNamesDescribe(t *testing.T) {
 	}
 }
 
+func TestSyncSecretTextUsesStdout(t *testing.T) {
+	a := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	b := testutil.CopyTree(t, testutil.Testdata(t, "home-b"))
+	cfgPath := writeLocalContexts(t, a, b)
+	t.Setenv("HARNESSCTL_BACKUP_DIR", t.TempDir())
+	out, err := run(t, "--no-probe", "--config", cfgPath, "sync", "--from", "source", "--to", "destination", "--harness", "codex", "--fields", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "sk-test") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "secret codex action=bearer") {
+		t.Fatalf("secret action should be on the command writer:\n%s", out)
+	}
+	if strings.Count(out, "no changes") > 0 && !strings.Contains(out, "action=bearer") {
+		t.Fatal(out)
+	}
+}
+
 func TestUnknownHarnessListsNames(t *testing.T) {
 	home := testutil.Testdata(t, "home-a")
 	cfg := testutil.Testdata(t, "harnessctl.yaml")
@@ -785,6 +808,9 @@ func TestUnknownHarnessListsNames(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "codex") || !strings.Contains(err.Error(), "cursor-agent") {
 		t.Fatalf("unknown harness should list valid names: %v", err)
+	}
+	if exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("exit = %d want %d (%v)", exitcode.From(err), exitcode.Usage, err)
 	}
 }
 

@@ -8,11 +8,10 @@ claude    model  claude-sonnet-4            claude-opus-4              /tmp/hctl
 grok      model  grok-4.6                   grok-4.5                   /tmp/hctl-verify-maintain-840a/homes/home-a/.grok/config.toml
 hermes    model  anthropic/claude-opus-4.6  anthropic/claude-sonnet-4  /tmp/hctl-verify-maintain-840a/homes/home-a/.hermes/config.yaml
 opencode  model  acme/gpt-5                 acme/gpt-4.1               /tmp/hctl-verify-maintain-840a/homes/home-a/.config/opencode/opencode.jsonc
+note: writing JSONC drops comments and trailing commas
 backup: /tmp/hctl-verify-maintain-840a/backups/claude-settings.json-18d451e9-20260913T144235.688761560Z-2345984517.bak
-backup: /tmp/hctl-verify-maintain-840a/backups/claude-.claude.json-f9e5ef3a-20260913T144235.688813345Z-2745284200.bak
 backup: /tmp/hctl-verify-maintain-840a/backups/grok-config.toml-a100dc27-20260913T144235.688978942Z-1650630235.bak
 backup: /tmp/hctl-verify-maintain-840a/backups/hermes-config.yaml-75cd117b-20260913T144235.689068793Z-2276450379.bak
-backup: /tmp/hctl-verify-maintain-840a/backups/hermes-.env-adbd8c93-20260913T144235.689086038Z-3867246020.bak
 backup: /tmp/hctl-verify-maintain-840a/backups/opencode-opencode.jsonc-b868c906-20260913T144235.689327365Z-715899780.bak
 ----- stderr -----
 

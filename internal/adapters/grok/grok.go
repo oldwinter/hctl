@@ -1,6 +1,7 @@
 package grok
 
 import (
+	"sort"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -120,7 +121,46 @@ func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) erro
 	if d.Provider != "" {
 		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for grok (inferred from base_url); use set model")
 	}
-	return nil
+	if d.Model == "" {
+		return nil
+	}
+	cfg, err := readGrokFile(fsys, home)
+	if err != nil {
+		return err
+	}
+	if cfg.Model != nil {
+		if _, ok := cfg.Model[d.Model]; ok {
+			return nil
+		}
+		old := stringFromMap(cfg.Models, "default")
+		if old != "" {
+			if _, ok := cfg.Model[old]; ok {
+				return nil
+			}
+		}
+	}
+	names := make([]string, 0, len(cfg.Model))
+	for name := range cfg.Model {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	have := strings.Join(names, ", ")
+	if have == "" {
+		have = "(none)"
+	}
+	return exitcode.Errorf(exitcode.Usage, "grok model %q has no [model.%q] table and no current model table to copy; have %s", d.Model, d.Model, have)
+}
+
+func readGrokFile(fsys fsx.FS, home string) (file, error) {
+	data, err := fsx.ReadMaybe(fsys, fsys.Join(home, ".grok", "config.toml"))
+	if err != nil || len(data) == 0 {
+		return file{}, err
+	}
+	var cfg file
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return file{}, exitcode.Errorf(exitcode.Parse, "grok config.toml is invalid")
+	}
+	return cfg, nil
 }
 
 func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
@@ -133,6 +173,23 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 		return nil, err
 	}
 	if d.Model != "" {
+		var cfg file
+		_ = toml.Unmarshal(data, &cfg)
+		exists := false
+		if cfg.Model != nil {
+			_, exists = cfg.Model[d.Model]
+		}
+		if !exists {
+			old := stringFromMap(cfg.Models, "default")
+			if old != "" && cfg.Model != nil {
+				if src, ok := cfg.Model[old]; ok {
+					data, err = copyGrokModel(data, d.Model, src)
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
 		data, err = edit.SetTOML(data, []string{"models", "default"}, d.Model)
 		if err != nil {
 			return nil, err
@@ -200,4 +257,45 @@ func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
 		}
 	}
 	return fsx.AtomicWrite(fsys, path, data, 0o600)
+}
+
+func copyGrokModel(data []byte, name string, src modelSection) ([]byte, error) {
+	var err error
+	if src.Model != "" {
+		data, err = edit.SetTOML(data, []string{"model", name, "model"}, src.Model)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if src.BaseURL != "" {
+		data, err = edit.SetTOML(data, []string{"model", name, "base_url"}, src.BaseURL)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if src.APIKey != "" {
+		data, err = edit.SetTOML(data, []string{"model", name, "api_key"}, src.APIKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if ref := firstEnvKey(src.EnvKey); ref != "" {
+		data, err = edit.SetTOML(data, []string{"model", name, "env_key"}, ref)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if src.APIBackend != "" {
+		data, err = edit.SetTOML(data, []string{"model", name, "api_backend"}, src.APIBackend)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if src.Reasoning != "" {
+		data, err = edit.SetTOML(data, []string{"model", name, "reasoning_effort"}, src.Reasoning)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return data, nil
 }

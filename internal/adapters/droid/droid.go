@@ -2,6 +2,8 @@ package droid
 
 import (
 	"encoding/json"
+	"sort"
+	"strings"
 
 	"github.com/oldwinter/hctl/internal/edit"
 	"github.com/oldwinter/hctl/internal/exitcode"
@@ -118,6 +120,16 @@ func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) erro
 	}
 	if d.SecretRef != "" {
 		return exitcode.Errorf(exitcode.Usage, "set secretRef is unsupported for current Factory Droid custom models")
+	}
+	if d.Model != "" && len(cfg.CustomModels) > 0 && findCustomModel(cfg.CustomModels, d.Model) == nil {
+		names := make([]string, 0, len(cfg.CustomModels))
+		for _, m := range cfg.CustomModels {
+			if m.ID != "" {
+				names = append(names, m.ID)
+			}
+		}
+		sort.Strings(names)
+		return exitcode.Errorf(exitcode.Usage, "droid model %q is not in customModels; have %s", d.Model, strings.Join(names, ", "))
 	}
 	return nil
 }

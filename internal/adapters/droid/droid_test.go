@@ -35,8 +35,12 @@ func TestReadHomeA(t *testing.T) {
 
 func TestCurrentSchemaModelWriteAndUnsupportedFields(t *testing.T) {
 	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
-	if _, err := (Adapter{}).WriteFields(fsx.Local{}, home, model.Desired{Model: "custom:fixture-next"}); err != nil {
+	if _, err := (Adapter{}).WriteFields(fsx.Local{}, home, model.Desired{Model: "custom:gpt-5-0"}); err != nil {
 		t.Fatal(err)
+	}
+	_, err := (Adapter{}).WriteFields(fsx.Local{}, home, model.Desired{Model: "custom:fixture-next"})
+	if err == nil || exitcode.From(err) != exitcode.Usage || !strings.Contains(err.Error(), "customModels") {
+		t.Fatalf("unknown custom model: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(home, ".factory", "settings.json"))
 	if err != nil {
@@ -47,7 +51,7 @@ func TestCurrentSchemaModelWriteAndUnsupportedFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	defaults, ok := raw["sessionDefaultSettings"].(map[string]any)
-	if !ok || defaults["model"] != "custom:fixture-next" {
+	if !ok || defaults["model"] != "custom:gpt-5-0" {
 		t.Fatalf("model was not written under sessionDefaultSettings: %v", raw)
 	}
 	if _, ok := raw["model"]; ok {

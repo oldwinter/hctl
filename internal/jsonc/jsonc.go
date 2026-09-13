@@ -7,6 +7,25 @@ import (
 	"unicode"
 )
 
+// HasCommentsOrTrailingCommas reports whether Strip would change non-space bytes.
+func HasCommentsOrTrailingCommas(in []byte) bool {
+	cleaned, err := Strip(in)
+	if err != nil {
+		return false
+	}
+	return !bytes.Equal(compactSpace(in), compactSpace(cleaned))
+}
+
+func compactSpace(in []byte) []byte {
+	out := make([]byte, 0, len(in))
+	for _, c := range in {
+		if !unicode.IsSpace(rune(c)) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // Unmarshal parses JSONC (JSON with comments and trailing commas).
 func Unmarshal(data []byte, v any) error {
 	cleaned, err := Strip(data)

@@ -29,9 +29,9 @@ source-identifying .bak files under backups/ beside the resolved config
 (or $HCTL_BACKUP_DIR / $HARNESSCTL_BACKUP_DIR).
 After write the snapshot is re-read and must match the intent.
 
-set provider is unsupported for claude (implicit anthropic) and grok
-(inferred from base_url). Those commands return a usage error even with
---dry-run — they do not silently no-op.
+set provider is unsupported for claude (implicit anthropic), grok
+(inferred from base_url), and Factory Droid custom models. Those
+commands return a usage error even with --dry-run — they do not silently no-op.
 
 Secrets are never printed. Unrelated keys are kept; see README for
 format-preservation caveats (JSONC comments are dropped).`,

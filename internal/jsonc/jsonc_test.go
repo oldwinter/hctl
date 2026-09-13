@@ -44,6 +44,15 @@ func TestDoesNotStripInsideStrings(t *testing.T) {
 	}
 }
 
+func TestHasCommentsOrTrailingCommas(t *testing.T) {
+	if !HasCommentsOrTrailingCommas([]byte("{\n  // c\n  \"a\": 1,\n}")) {
+		t.Fatal("expected comments")
+	}
+	if HasCommentsOrTrailingCommas([]byte(`{"a":1}`)) {
+		t.Fatal("plain json")
+	}
+}
+
 func TestBlockComment(t *testing.T) {
 	in := []byte(`{"a": 1, /* skip */ "b": 2}`)
 	var v map[string]any

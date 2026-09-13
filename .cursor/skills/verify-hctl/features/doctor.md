@@ -26,10 +26,10 @@ Preconditions:
 - `theme` is the home-theme copy: `.claude.json` lacks `theme` / `hasCompletedOnboarding`; `.claude/settings.json` is theme-only.
 - `drift` is the home-drift copy: Codex and Claude share host `sub2api.example` with different fixture keys.
 
-- **Healthy fixture table.** Run `.cursor/skills/verify-hctl/scripts/verify-hctl drive --out doctor/mba.txt -- doctor`. Exit `0`. Header is `NAME INSTALLED CONFIG KEY ONBOARDING MESSAGE`. Codex `CONFIG` is `ok`. Claude `CONFIG` is `ok`. No `sk-test` token.
+- **Healthy fixture table.** Run `.cursor/skills/verify-hctl/scripts/verify-hctl drive --out doctor/mba.txt -- doctor`. Exit `0`. Header is `NAME INSTALLED CONFIG KEY ONBOARDING DRIFT MESSAGE`. Codex `CONFIG` is `ok`. Claude `CONFIG` is `ok`. No `sk-test` token. OpenCode MESSAGE may mention JSONC comment drop.
 - **JSON.** Run `verify-hctl drive --out doctor/mba.json.txt -- -o json doctor`. Exit `0`. JSON includes `"name": "codex"` and no fixture keys.
 - **Theme leftover.** Run `verify-hctl drive --context theme --out doctor/theme.txt -- doctor`. Exit `0`. Claude `ONBOARDING` is `needed`. MESSAGE mentions onboarding or wizard leftover / missing theme. Settings-only theme without a model is part of that leftover.
-- **Key drift.** Run `verify-hctl drive --context drift --out doctor/drift.txt -- doctor`. Exit `0`. MESSAGE contains `key drift on host sub2api.example (claude,codex)`.
+- **Key drift.** Run `verify-hctl drive --context drift --out doctor/drift.txt -- doctor`. Exit `0`. DRIFT is `key-drift` for Codex and Claude. MESSAGE contains `key drift on host sub2api.example (claude,codex)`.
 - **Proof.** Keep the four `--out` files. Confirm `HCTL_VERIFY_HOME_A/.codex/config.toml` still has `model = "gpt-5.2-codex"` (doctor does not write).
 
 ## Gotchas

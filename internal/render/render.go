@@ -75,6 +75,9 @@ func ModelsTable(w io.Writer, snaps []model.Snapshot) error {
 func Describe(w io.Writer, contextName string, s model.Snapshot) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Name:              %s\n", s.Name)
+	if len(s.NameAliases) > 0 {
+		fmt.Fprintf(&b, "Also known as:     %s\n", strings.Join(s.NameAliases, ", "))
+	}
 	fmt.Fprintf(&b, "Context:           %s\n", contextName)
 	fmt.Fprintf(&b, "Installed:         %s\n", installedLine(s))
 	fmt.Fprintf(&b, "Config Found:      %t\n", s.ConfigFound)
@@ -102,17 +105,22 @@ func Describe(w io.Writer, contextName string, s model.Snapshot) error {
 
 // DoctorTable prints doctor rows.
 func DoctorTable(w io.Writer, checks []model.DoctorCheck) error {
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	if _, err := fmt.Fprintln(tw, "NAME\tINSTALLED\tCONFIG\tKEY\tONBOARDING\tMESSAGE"); err != nil {
+	var b strings.Builder
+	tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
+	if _, err := fmt.Fprintln(tw, "NAME\tINSTALLED\tCONFIG\tKEY\tONBOARDING\tDRIFT\tMESSAGE"); err != nil {
 		return err
 	}
 	for _, c := range checks {
-		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			c.Name, c.Installed, c.Config, c.Key, c.Onboarding, c.Message); err != nil {
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			c.Name, c.Installed, c.Config, c.Key, c.Onboarding, dash(c.Drift), c.Message); err != nil {
 			return err
 		}
 	}
-	return tw.Flush()
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	_, err := io.WriteString(w, secret.Redact(b.String()))
+	return err
 }
 
 // ContextsTable prints kubeconfig-like contexts.
@@ -167,16 +175,20 @@ func Diff(w io.Writer, labelA, labelB string, diffs []model.FieldDiff) error {
 }
 
 func secretCell(s model.Snapshot) string {
-	switch {
-	case s.SecretFingerprint != "":
-		return "sha256:" + s.SecretFingerprint
-	case s.SecretRef != "":
-		return "env:" + s.SecretRef
-	case s.SecretPresent:
-		return "present"
-	default:
-		return "-"
+	var parts []string
+	if s.SecretFingerprint != "" {
+		parts = append(parts, "sha256:"+s.SecretFingerprint)
 	}
+	if s.SecretRef != "" {
+		parts = append(parts, "env:"+s.SecretRef)
+	}
+	if len(parts) > 0 {
+		return strings.Join(parts, " ")
+	}
+	if s.SecretPresent {
+		return "present"
+	}
+	return "-"
 }
 
 func installedLine(s model.Snapshot) string {
@@ -210,17 +222,44 @@ func empty(v string) string {
 	return v
 }
 
+func hasSecretAction(secrets []model.SecretCopy) bool {
+	for _, s := range secrets {
+		if s.Action != "" && s.Action != "none" {
+			return true
+		}
+	}
+	return false
+}
+
+func secretCopied(secrets []model.SecretCopy) bool {
+	for _, s := range secrets {
+		if s.Copied {
+			return true
+		}
+	}
+	return false
+}
+
+func jsoncWriteWarning(r model.ApplyReport) bool {
+	for _, c := range r.Changes {
+		if strings.HasSuffix(strings.ToLower(c.Path), ".jsonc") {
+			return true
+		}
+	}
+	return false
+}
+
 // ApplyReport prints a set/apply/sync summary.
 func ApplyReport(w io.Writer, r model.ApplyReport) error {
 	var b strings.Builder
 	if r.DryRun {
 		fmt.Fprintln(&b, "dry-run: no files written")
-	} else if r.Verified {
+	} else if r.Verified || secretCopied(r.Secrets) {
 		fmt.Fprintln(&b, "verified: ok")
 	}
-	if len(r.Changes) == 0 {
+	if len(r.Changes) == 0 && !hasSecretAction(r.Secrets) {
 		fmt.Fprintln(&b, "no changes")
-	} else {
+	} else if len(r.Changes) > 0 {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
 		if _, err := fmt.Fprintln(tw, "HARNESS\tFIELD\tFROM\tTO\tPATH"); err != nil {
 			return err
@@ -233,6 +272,28 @@ func ApplyReport(w io.Writer, r model.ApplyReport) error {
 		if err := tw.Flush(); err != nil {
 			return err
 		}
+	}
+	for _, c := range r.Secrets {
+		if c.Action == "" || c.Action == "none" {
+			continue
+		}
+		line := "secret " + c.Harness + " action=" + c.Action
+		if c.From != "" {
+			line += " from=sha256:" + c.From
+		}
+		if c.To != "" {
+			line += " to=sha256:" + c.To
+		}
+		if c.Ref != "" {
+			line += " ref=" + c.Ref
+		}
+		fmt.Fprintln(&b, line)
+	}
+	if jsoncWriteWarning(r) {
+		fmt.Fprintln(&b, "note: writing JSONC drops comments and trailing commas")
+	}
+	for _, n := range r.Notes {
+		fmt.Fprintf(&b, "note: %s\n", n)
 	}
 	for _, bak := range r.Backups {
 		fmt.Fprintf(&b, "backup: %s\n", bak)

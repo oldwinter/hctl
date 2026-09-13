@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/oldwinter/hctl/internal/edit"
@@ -111,6 +112,21 @@ func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 }
 
 func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
+	if d.Provider != "" {
+		ok, err := knownPiProvider(fsys, home, d.Provider)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			models, _ := readModels(fsys, home)
+			names := make([]string, 0, len(models.Providers))
+			for name := range models.Providers {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			return exitcode.Errorf(exitcode.Usage, "pi provider %q is not in models.json; have %s", d.Provider, strings.Join(names, ", "))
+		}
+	}
 	if d.SecretRef == "" {
 		return nil
 	}
@@ -261,6 +277,26 @@ func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
 		return err
 	}
 	return fsx.AtomicWrite(fsys, path, data, 0o600)
+}
+
+func knownPiProvider(fsys fsx.FS, home, id string) (bool, error) {
+	models, err := readModels(fsys, home)
+	if err != nil {
+		return false, err
+	}
+	if _, ok := models.Providers[id]; ok {
+		return true, nil
+	}
+	data, err := fsx.ReadMaybe(fsys, fsys.Join(home, ".pi", "agent", "auth.json"))
+	if err != nil {
+		return false, err
+	}
+	creds, err := parseAuth(data)
+	if err != nil {
+		return false, nil
+	}
+	_, ok := creds[id]
+	return ok, nil
 }
 
 func selectedProvider(fsys fsx.FS, home, override string) (string, error) {

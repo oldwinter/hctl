@@ -2,11 +2,11 @@ command: /tmp/hctl-verify-proof1/bin/hctl --config /tmp/hctl-verify-proof1/confi
 run_id: proof1
 exit: 0
 ----- stdout -----
-NAME          INSTALLED  VERSION  PROVIDER   MODEL                      HOST               SECRET           CONFIG
-codex         no         -        custom     gpt-5.2-codex              api.openai.com     sha256:b6310a05  /tmp/hctl-verify-proof1/homes/home-a/.codex/config.toml
-claude        no         -        anthropic  claude-sonnet-4            api.anthropic.com  sha256:b6310a05  /tmp/hctl-verify-proof1/homes/home-a/.claude/settings.json,/tmp/hctl-verify-proof1/homes/home-a/.claude.json
-grok          no         -        xai        grok-4.6                   api.x.ai           sha256:b6310a05  /tmp/hctl-verify-proof1/homes/home-a/.grok/config.toml
-hermes        no         -        custom     anthropic/claude-opus-4.6  openrouter.ai      sha256:b6310a05  /tmp/hctl-verify-proof1/homes/home-a/.hermes/config.yaml,/tmp/hctl-verify-proof1/homes/home-a/.hermes/.env
+NAME          INSTALLED  VERSION  PROVIDER   MODEL                      HOST               SECRET                                  CONFIG
+codex         no         -        custom     gpt-5.2-codex              api.openai.com     sha256:b6310a05                         /tmp/hctl-verify-proof1/homes/home-a/.codex/config.toml
+claude        no         -        anthropic  claude-sonnet-4            api.anthropic.com  sha256:b6310a05                         /tmp/hctl-verify-proof1/homes/home-a/.claude/settings.json,/tmp/hctl-verify-proof1/homes/home-a/.claude.json
+grok          no         -        xai        grok-4.6                   api.x.ai           sha256:b6310a05                         /tmp/hctl-verify-proof1/homes/home-a/.grok/config.toml
+hermes        no         -        custom     anthropic/claude-opus-4.6  openrouter.ai      sha256:b6310a05 env:OPENROUTER_API_KEY  /tmp/hctl-verify-proof1/homes/home-a/.hermes/config.yaml,/tmp/hctl-verify-proof1/homes/home-a/.hermes/.env
 opencode      no         -        acme       acme/gpt-5                 api.acme.example   sha256:b6310a05  /tmp/hctl-verify-proof1/homes/home-a/.config/opencode/opencode.jsonc
 pi            no         -        sub2api    gpt-5.6-sol                api.openai.com     sha256:b6310a05  /tmp/hctl-verify-proof1/homes/home-a/.pi/agent/settings.json,/tmp/hctl-verify-proof1/homes/home-a/.pi/agent/models.json,/tmp/hctl-verify-proof1/homes/home-a/.pi/agent/auth.json
 droid         no         -        openai     custom:gpt-5-0             api.openai.com     sha256:b6310a05  /tmp/hctl-verify-proof1/homes/home-a/.factory/settings.json,/tmp/hctl-verify-proof1/homes/home-a/.factory/auth.json

@@ -31,7 +31,7 @@ Examples:
   hctl get models`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				return exitcode.Errorf(exitcode.Usage, "missing resource; want %s", getResources)
+				return exitcode.Errorf(exitcode.Usage, "missing resource; want %s. Next: hctl get harnesses", getResources)
 			}
 			if len(args) > 2 {
 				return exitcode.Errorf(exitcode.Usage, "too many args; want %s get RESOURCE [NAME] (example: hctl get harness codex)", cmd.Root().Name())
@@ -102,7 +102,7 @@ Examples:
 					return err
 				}
 			default:
-				return writeErr(cmd, exitcode.Errorf(exitcode.Usage, "unknown resource %q (want %s)", args[0], getResources))
+				return writeErr(cmd, exitcode.Errorf(exitcode.Usage, "unknown resource %q (want %s). Next: hctl get harnesses", args[0], getResources))
 			}
 			return nil
 		},

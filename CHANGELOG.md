@@ -19,6 +19,11 @@ Versioning: [SemVer](https://semver.org/).
 - Preferred env names `HCTL_HOME`, `HCTL_CONFIG`, `HCTL_BACKUP_DIR`, `HCTL_SSH` (legacy `HARNESSCTL_*` still works).
 
 ### Changed
+- `doctor` human table includes a `DRIFT` column (`key-drift` or `-`).
+- `sync --fields secret` prints bearer action lines on stdout with the apply report (JSON `secrets[]` is unchanged).
+- Field writes back up only the files the adapter actually wrote (Claude model set no longer copies unchanged `~/.claude.json`).
+- Inventory `SECRET` shows both a fingerprint and `env:NAME` when both exist.
+- `describe` prints official name aliases and a note when provider is not writable.
 - `-o json` is equivalent to `--json` on get/describe/doctor/set/apply/diff/sync/config/version.
 - `remote.Dial` is the only home resolver. Dead `ResolveHome` / local-only adapter `Read(home)` / `FSReader` fallbacks are gone.
 - Adapter `Read` always takes `(fs, home)`. Inventory and writes share one desired-field table (`model.ChangesFromDesired`).
@@ -28,6 +33,13 @@ Versioning: [SemVer](https://semver.org/).
 - `just lint` requires golangci-lint **v2.13.2** and loads `.golangci.yml` (`version: "2"`). It no longer falls back to `go vet`.
 
 ### Fixed
+- Grok `set model` to a name without a `[model."…"]` table clones the current section instead of leaving host/secret unobserved after `verified: ok`.
+- Droid / OpenCode / Codex / Hermes / Pi reject writes that would point at a missing provider or custom-model id.
+- OpenCode `set provider` values containing `/` fail immediately; bare `set model gpt-4.1` keeps the current `provider/` prefix.
+- OpenCode secret copy writes the existing `providers` / `settings` alias instead of injecting a parallel `provider` object.
+- Cursor login probe treats `not logged in` / `unauthenticated` as logged-out; `BinaryNames` is `cursor-agent` only (GUI `cursor` is no longer an install hit).
+- Unknown harness names exit 2 (usage). `get` / `-o` usage errors name a next command.
+- Doctor table output is redacted. Apply/set dry-run reports warn when a JSONC path will drop comments.
 - Unknown `-o` values (for example `-o yaml`) exit 2 instead of printing a table.
 - `get models -o json`, `doctor -o json`, `describe -o json`, and other read/write commands honor `-o json`.
 - `hctl get harness NAME` no longer errors with "too many args".

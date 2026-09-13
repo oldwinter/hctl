@@ -11,7 +11,6 @@ import (
 	"github.com/oldwinter/hctl/internal/model"
 	"github.com/oldwinter/hctl/internal/mutate"
 	"github.com/oldwinter/hctl/internal/render"
-	"github.com/oldwinter/hctl/internal/secret"
 )
 
 func newSyncCmd(opts *options) *cobra.Command {
@@ -54,6 +53,8 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 			if harness != "" {
 				names = splitCSV(harness)
 			}
+			batch := len(names) > 1
+			var skips []string
 			fieldSet := map[string]bool{}
 			if fields == "" {
 				fields = "model,provider"
@@ -103,6 +104,10 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 						Ownership: opts.ownershipOptions(),
 					})
 					if err != nil {
+						if batch && exitcode.From(err) == exitcode.Usage {
+							skips = append(skips, fmt.Sprintf("skipped %s: %s", ad.Name(), err.Error()))
+							continue
+						}
 						return err
 					}
 					entry.hasField = true
@@ -120,13 +125,17 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 						Ownership: opts.ownershipOptions(),
 					})
 					if err != nil {
+						if batch && exitcode.From(err) == exitcode.Usage {
+							skips = append(skips, fmt.Sprintf("skipped %s: %s", ad.Name(), err.Error()))
+							continue
+						}
 						return err
 					}
 					entry.hasSecret = true
 				}
 				preparedBatch = append(preparedBatch, entry)
 			}
-			rep := model.ApplyReport{DryRun: dryRun}
+			rep := model.ApplyReport{DryRun: dryRun, Notes: skips}
 			var copies []model.SecretCopy
 			for _, entry := range preparedBatch {
 				if entry.hasField {
@@ -145,33 +154,16 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 					}
 					copies = append(copies, cp)
 					rep.Backups = append(rep.Backups, cp.Backups...)
+					if cp.Copied {
+						rep.Verified = true
+					}
 				}
 			}
-			type out struct {
-				model.ApplyReport
-				Secrets []model.SecretCopy `json:"secrets,omitempty"`
-			}
-			payload := out{ApplyReport: rep, Secrets: copies}
+			rep.Secrets = copies
 			if opts.wantJSON() {
-				return render.JSON(cmd.OutOrStdout(), payload)
+				return render.JSON(cmd.OutOrStdout(), rep)
 			}
-			if err := render.ApplyReport(cmd.OutOrStdout(), rep); err != nil {
-				return err
-			}
-			for _, c := range copies {
-				line := "secret " + c.Harness + " action=" + c.Action
-				if c.From != "" {
-					line += " from=sha256:" + c.From
-				}
-				if c.To != "" {
-					line += " to=sha256:" + c.To
-				}
-				if c.Ref != "" {
-					line += " ref=" + c.Ref
-				}
-				cmd.Println(secret.Redact(line))
-			}
-			return nil
+			return render.ApplyReport(cmd.OutOrStdout(), rep)
 		},
 	}
 	cmd.Flags().StringVar(&from, "from", "", "source context")

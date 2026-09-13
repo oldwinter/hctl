@@ -36,7 +36,7 @@ Preconditions:
 - **Models table.** Run `verify-hctl drive --out inventory/get-models.txt -- get models`. Exit `0`. Header is `HARNESS PROVIDER MODEL …`. Codex MODEL is `gpt-5.2-codex`. Claude MODEL is `claude-sonnet-4`.
 - **JSON models.** Run `verify-hctl drive --out inventory/get-models.json.txt -- -o json get models`. Exit `0`. Stdout is a JSON array containing `"harness": "codex"` and `"model": "gpt-5.2-codex"`.
 - **Wide paths.** Run `verify-hctl drive --out inventory/get-harnesses-wide.txt -- -o wide get harnesses`. Exit `0`. Header includes `CONFIG`. Codex CONFIG contains `.codex/config.toml` under the isolated `homes/home-a`, not the repo `testdata/` path.
-- **Describe.** Run `verify-hctl drive --out inventory/describe-codex.txt -- describe harness codex`. Exit `0`. Block includes `Name:              codex`, `Default Model:     gpt-5.2-codex`, `Secret:            sha256:`, and no `sk-test`.
+- **Describe.** Run `verify-hctl drive --out inventory/describe-codex.txt -- describe harness codex`. Exit `0`. Block includes `Name:              codex`, `Also known as:     openai-codex`, `Default Model:     gpt-5.2-codex`, `Secret:            sha256:`, and no `sk-test`.
 - **Empty home.** Run `verify-hctl drive --context empty --out inventory/get-harnesses-empty.txt -- get harnesses`. Exit `0`. Stderr or stdout contains `Next: hctl get harnesses -o wide`.
 - **Proof.** Keep the `--out` files. Re-read Codex from disk: `grep '^model =' "$HCTL_VERIFY_HOME_A/.codex/config.toml"` is still `model = "gpt-5.2-codex"` (inventory is read-only).
 

@@ -109,22 +109,26 @@ func ApplyPrepared(plan Plan) (model.ApplyReport, error) {
 	if req.BackupDir == "" {
 		req.BackupDir = DefaultBackupDir("")
 	}
+	beforeBytes := map[string][]byte{}
 	for _, p := range plan.before.ConfigPaths {
 		data, err := fsx.ReadMaybe(req.FS, p)
 		if err != nil {
 			return rep, err
 		}
-		bak, err := fsx.BackupLocal(req.BackupDir, req.Adapter.Name(), p, data)
+		beforeBytes[p] = data
+	}
+	paths, err := plan.writer.WriteFields(req.FS, req.Home, req.Desired)
+	if err != nil {
+		return rep, err
+	}
+	for _, p := range paths {
+		bak, err := fsx.BackupLocal(req.BackupDir, req.Adapter.Name(), p, beforeBytes[p])
 		if err != nil {
 			return rep, err
 		}
 		if bak != "" {
 			rep.Backups = append(rep.Backups, bak)
 		}
-	}
-	paths, err := plan.writer.WriteFields(req.FS, req.Home, req.Desired)
-	if err != nil {
-		return rep, err
 	}
 	for i := range rep.Changes {
 		if len(paths) > 0 {

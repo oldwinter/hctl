@@ -25,6 +25,8 @@ func newApplyCmd(opts *options) *cobra.Command {
 
   hctl apply -f testdata/desired.toml --dry-run
   hctl apply -f testdata/desired.toml
+
+Writing a JSONC file (OpenCode) drops comments and trailing commas.
 `,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -1,9 +1,13 @@
 package codex
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/oldwinter/hctl/internal/edit"
+	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/model"
 	"github.com/oldwinter/hctl/internal/secret"
@@ -80,7 +84,36 @@ func applyProvider(snap *model.Snapshot, p provider) {
 	}
 }
 
+func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
+	if d.Provider == "" {
+		return nil
+	}
+	data, err := fsx.ReadMaybe(fsys, fsys.Join(home, ".codex", "config.toml"))
+	if err != nil || len(data) == 0 {
+		return err
+	}
+	var cfg file
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return exitcode.Errorf(exitcode.Parse, "codex config.toml is invalid")
+	}
+	if len(cfg.ModelProviders) == 0 {
+		return nil
+	}
+	if _, ok := cfg.ModelProviders[d.Provider]; ok {
+		return nil
+	}
+	names := make([]string, 0, len(cfg.ModelProviders))
+	for name := range cfg.ModelProviders {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return exitcode.Errorf(exitcode.Usage, "codex provider %q is not in model_providers; have %s", d.Provider, strings.Join(names, ", "))
+}
+
 func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
+	if err := a.ValidateDesired(fsys, home, d); err != nil {
+		return nil, err
+	}
 	path := fsys.Join(home, ".codex", "config.toml")
 	data, err := fsx.ReadMaybe(fsys, path)
 	if err != nil {

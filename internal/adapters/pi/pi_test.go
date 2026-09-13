@@ -81,7 +81,7 @@ func TestProviderScopedAuthEnvMappingAndUnresolvedPrecedence(t *testing.T) {
 
 func TestWriteFieldsUsesCanonicalKeysAndPreservesUnrelatedSettings(t *testing.T) {
 	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
-	paths, err := (Adapter{}).WriteFields(fsx.Local{}, home, model.Desired{Model: "fixture-next", Provider: "other"})
+	paths, err := (Adapter{}).WriteFields(fsx.Local{}, home, model.Desired{Model: "fixture-next", Provider: "unused"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestWriteFieldsUsesCanonicalKeysAndPreservesUnrelatedSettings(t *testing.T)
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatal(err)
 	}
-	if raw["defaultModel"] != "fixture-next" || raw["defaultProvider"] != "other" || raw["theme"] != "dark" {
+	if raw["defaultModel"] != "fixture-next" || raw["defaultProvider"] != "unused" || raw["theme"] != "dark" {
 		t.Fatalf("settings=%v", raw)
 	}
 	if _, ok := raw["model"]; ok {
@@ -180,5 +180,12 @@ func TestSecretRefRefusesSelectedOAuthCredentialWithoutChangingAuth(t *testing.T
 				t.Fatalf("OAuth credential changed: before=%q after=%q", before, after)
 			}
 		})
+	}
+}
+
+func TestValidateDesiredRejectsUnknownProvider(t *testing.T) {
+	err := (Adapter{}).ValidateDesired(fsx.Local{}, testutil.Testdata(t, "home-a"), model.Desired{Provider: "nope"})
+	if err == nil || !strings.Contains(err.Error(), "models.json") {
+		t.Fatalf("err=%v", err)
 	}
 }
