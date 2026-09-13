@@ -1,0 +1,7 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe set provider claude custom --dry-run 
+run_id: maintain-840a
+exit: 2
+----- stdout -----
+
+----- stderr -----
+set provider is unsupported for claude (provider is implicit anthropic); use set model

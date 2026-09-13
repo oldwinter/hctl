@@ -1,0 +1,14 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe diff harness codex --contexts mba\,box 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+--- mba (/tmp/hctl-verify-maintain-840a/homes/home-a)
++++ box (/tmp/hctl-verify-maintain-840a/homes/home-b)
+
+FIELD              A               B
+defaultModel       gpt-5.2-codex   o4-mini
+baseUrlHost        api.openai.com  llm.box.example
+effort             high            medium
+secretFingerprint  b6310a05        da4ccace
+----- stderr -----
+

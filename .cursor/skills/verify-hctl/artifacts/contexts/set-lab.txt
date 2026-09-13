@@ -1,0 +1,8 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe config set-context lab --kind local --home /tmp/hctl-verify-unused-lab 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+Context "lab" saved.
+Next: hctl config use-context lab
+----- stderr -----
+

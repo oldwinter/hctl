@@ -1,0 +1,7 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe config set-context 
+run_id: maintain-840a
+exit: 2
+----- stdout -----
+
+----- stderr -----
+config set-context NAME (example: hctl config set-context box --kind ssh --ssh user@host)

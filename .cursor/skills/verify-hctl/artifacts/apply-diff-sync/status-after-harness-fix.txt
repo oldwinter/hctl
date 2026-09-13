@@ -1,0 +1,13 @@
+RUN_ID=maintain-840a
+BIN=/tmp/hctl-verify-maintain-840a/bin/hctl
+ALIAS=/tmp/hctl-verify-maintain-840a/bin/harnessctl
+CONFIG=/tmp/hctl-verify-maintain-840a/config.yaml
+WS=/tmp/hctl-verify-maintain-840a
+DESIRED=/tmp/hctl-verify-maintain-840a/desired.toml
+BACKUP=/tmp/hctl-verify-maintain-840a/backups
+HOME_A=/tmp/hctl-verify-maintain-840a/homes/home-a
+HOME_B=/tmp/hctl-verify-maintain-840a/homes/home-b
+HOME_THEME=/tmp/hctl-verify-maintain-840a/homes/home-theme
+HOME_DRIFT=/tmp/hctl-verify-maintain-840a/homes/home-drift
+HOME_EMPTY=/tmp/hctl-verify-maintain-840a/homes/home-empty
+EVIDENCE=/workspace/.cursor/skills/verify-hctl/artifacts

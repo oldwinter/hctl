@@ -1,0 +1,8 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe config current-context 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+mba
+/tmp/hctl-verify-maintain-840a/config.yaml
+----- stderr -----
+

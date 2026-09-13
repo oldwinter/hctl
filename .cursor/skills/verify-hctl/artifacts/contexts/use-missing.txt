@@ -1,0 +1,7 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe config use-context 
+run_id: maintain-840a
+exit: 2
+----- stdout -----
+
+----- stderr -----
+config use-context NAME (example: hctl config get-contexts then hctl config use-context box)

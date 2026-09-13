@@ -1,0 +1,13 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe apply -f /tmp/hctl-verify-maintain-840a/desired.toml --dry-run 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+dry-run: no files written
+HARNESS   FIELD  FROM                       TO                         PATH
+claude    model  claude-sonnet-4            claude-opus-4              /tmp/hctl-verify-maintain-840a/homes/home-a/.claude/settings.json
+codex     model  gpt-5.2-codex              o4-mini                    /tmp/hctl-verify-maintain-840a/homes/home-a/.codex/config.toml
+grok      model  grok-4.6                   grok-4.5                   /tmp/hctl-verify-maintain-840a/homes/home-a/.grok/config.toml
+hermes    model  anthropic/claude-opus-4.6  anthropic/claude-sonnet-4  /tmp/hctl-verify-maintain-840a/homes/home-a/.hermes/config.yaml
+opencode  model  acme/gpt-5                 acme/gpt-4.1               /tmp/hctl-verify-maintain-840a/homes/home-a/.config/opencode/opencode.jsonc
+----- stderr -----
+
