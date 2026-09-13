@@ -205,11 +205,24 @@ cmd_doctor() {
 			ok=1
 		fi
 	}
+	# [[ is a reserved word and cannot be passed through "$@".
+	has_prefix() {
+		case "$1" in
+		"$2"*) return 0 ;;
+		*) return 1 ;;
+		esac
+	}
+	lacks_prefix() {
+		case "$1" in
+		"$2"*) return 1 ;;
+		*) return 0 ;;
+		esac
+	}
 
 	check "binary exists and is executable" test -x "$HCTL_VERIFY_BIN"
 	check "alias binary exists" test -x "$HCTL_VERIFY_ALIAS"
-	check "workspace is under ${state_root}/hctl-verify-" [[ "$HCTL_VERIFY_WS" == "$state_root/hctl-verify-"* ]]
-	check "homes are copies, not testdata originals" [[ "$HCTL_VERIFY_HOME_A" != "$HCTL_VERIFY_REPO/testdata/"* ]]
+	check "workspace is under ${state_root}/hctl-verify-" has_prefix "$HCTL_VERIFY_WS" "${state_root}/hctl-verify-"
+	check "homes are copies, not testdata originals" lacks_prefix "$HCTL_VERIFY_HOME_A" "${HCTL_VERIFY_REPO}/testdata/"
 	check "mba home has testdata/home-a Codex fixture" test -f "$HCTL_VERIFY_HOME_A/.codex/config.toml"
 	check "box home has testdata/home-b Codex fixture" test -f "$HCTL_VERIFY_HOME_B/.codex/config.toml"
 	check "config file exists" test -f "$HCTL_VERIFY_CONFIG"
