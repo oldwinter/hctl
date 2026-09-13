@@ -224,10 +224,8 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 	key := path[len(path)-1]
 	wantHeader := tomlHeader(table)
 
-	type pos struct{ line, tableDepth int }
 	current := ""
 	found := false
-	insertAt := -1
 	headerLine := -1
 	for i, line := range lines {
 		trim := strings.TrimSpace(line)
@@ -260,7 +258,7 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 	newline := key + " = " + quoted
 	if wantHeader == "" {
 		// append before first table
-		insertAt = len(lines)
+		insertAt := len(lines)
 		for i, line := range lines {
 			trim := strings.TrimSpace(line)
 			if strings.HasPrefix(trim, "[") {

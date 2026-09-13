@@ -49,8 +49,8 @@ func TestApplySetModelRoundTrip(t *testing.T) {
 	if !strings.Contains(string(data), "experimental_bearer_token") {
 		t.Fatal("lost unrelated secret field")
 	}
-	if strings.Contains(string(data), "sk-test-aaa") == false {
-		// token should still be in the file (we don't strip it), just never printed
+	if !strings.Contains(string(data), "sk-test-aaa") {
+		t.Fatal("lost bearer token (must stay in file, never printed)")
 	}
 	ents, _ := os.ReadDir(bak)
 	if len(ents) == 0 {

@@ -18,8 +18,10 @@ Versioning: [SemVer](https://semver.org/).
 - Already-converged `apply` / `set` skip backup and write. `config.Save` is backup → temp → rename → re-read.
 - `diff -f` rejects unknown harness names the same way `apply` does.
 - Claude and Grok refuse `set provider` in `ValidateDesired`, not in a mutate special case.
+- `just lint` requires golangci-lint **v2.13.2** and loads `.golangci.yml` (`version: "2"`). It no longer falls back to `go vet`.
 
 ### Fixed
+- `just lint` findings: checked render/table writes, removed unused TOML edit types, and replaced empty test branches with assertions.
 - `hctl sync` without `--from`/`--to` exits 2 and prints a `--dry-run` example.
 - `hctl config use-context` without NAME exits 2 and names `get-contexts`.
 - Default `sync --fields model,provider` skips provider on claude/grok instead of failing the batch.

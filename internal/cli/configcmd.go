@@ -45,9 +45,11 @@ func newConfigCmd(opts *options) *cobra.Command {
 					"config":         opts.configPath,
 				})
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), cfg.CurrentContext)
-			fmt.Fprintln(cmd.OutOrStdout(), opts.configPath)
-			return nil
+			if _, err := fmt.Fprintln(cmd.OutOrStdout(), cfg.CurrentContext); err != nil {
+				return err
+			}
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), opts.configPath)
+			return err
 		},
 	})
 	setCtx := &cobra.Command{
@@ -92,8 +94,8 @@ func newConfigCmd(opts *options) *cobra.Command {
 			if err := config.Save(opts.configPath, cfg); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Context %q saved.\n", args[0])
-			return nil
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Context %q saved.\n", args[0])
+			return err
 		},
 	}
 	setCtx.Flags().String("kind", "", "local or ssh")
@@ -121,8 +123,8 @@ func newConfigCmd(opts *options) *cobra.Command {
 			if err := config.Save(opts.configPath, cfg); err != nil {
 				return writeErr(cmd, err)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Switched to context %q.\n", args[0])
-			return nil
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Switched to context %q.\n", args[0])
+			return err
 		},
 	})
 	return cmd

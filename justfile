@@ -22,15 +22,15 @@ race:
 fmt:
 	go fmt ./...
 
+# golangci-lint v2.13.2; config is .golangci.yml (version: "2").
 lint:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	if command -v golangci-lint >/dev/null 2>&1; then
-		golangci-lint run ./...
-	else
-		echo "golangci-lint not installed; falling back to go vet"
-		go vet ./...
+	if ! command -v golangci-lint >/dev/null 2>&1; then
+		echo "golangci-lint v2.13.2 is required (see CONTRIBUTING.md)" >&2
+		exit 1
 	fi
+	golangci-lint run ./...
 
 # Cross-compile linux/amd64 binaries and SHA-256 checksums into dist/.
 release:

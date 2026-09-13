@@ -274,10 +274,7 @@ func TestApplyAndDiffDesired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "o4-mini") || !strings.Contains(out, "round-trip") && !strings.Contains(out, "claude-opus-4") {
-		// claude-opus-4 is in desired.toml
-	}
-	if !strings.Contains(out, "claude-opus-4") {
+	if !strings.Contains(out, "o4-mini") || !strings.Contains(out, "claude-opus-4") {
 		t.Fatal(out)
 	}
 	if strings.Contains(out, "sk-test") {

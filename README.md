@@ -221,6 +221,8 @@ just release
 
 `just build` / `just release` 通过 `-ldflags` 写入 `internal/cli.Version` / `Commit` / `Date`（见 `justfile`）。裸 `go build` / `go install` 时 commit 与 date 为 `unknown`。
 
+`just lint` 需要 **golangci-lint v2.13.2**（`.golangci.yml` 的 `version: "2"`）。安装见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ## 非目标
 
 - 不调度 agent（herdr-orchestrator）
