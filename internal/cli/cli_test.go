@@ -195,6 +195,9 @@ contexts:
 	if _, err := run(t, "--config", cfgPath, "sync", "--from", "mba", "--to", "box", "--harness", "claude,grok", "--dry-run"); err != nil {
 		t.Fatalf("default sync fields must skip unsupported provider on claude/grok: %v", err)
 	}
+	if _, err := run(t, "--config", cfgPath, "sync", "--from", "mba", "--to", "box", "--dry-run"); err != nil {
+		t.Fatalf("default sync of all harnesses must skip unsupported provider on droid: %v", err)
+	}
 	out, err = run(t, "--config", cfgPath, "--context", "box", "describe", "harness", "codex")
 	if err != nil {
 		t.Fatal(err)
@@ -620,6 +623,7 @@ func TestMissingArgsExitUsageWithExample(t *testing.T) {
 		{[]string{"config", "use-context"}, "hctl config get-contexts"},
 		{[]string{"config", "set-context"}, "hctl config set-context box --kind ssh"},
 		{[]string{"diff"}, "hctl diff harness codex --home-a"},
+		{[]string{"diff", "harness", "codex"}, "hctl diff harness codex --home-a"},
 	}
 	for _, tc := range cases {
 		out, err := run(t, tc.args...)
@@ -769,5 +773,39 @@ func TestDoctorParseErrorNamesDescribe(t *testing.T) {
 	msg := err.Error() + out
 	if !strings.Contains(msg, "hctl describe harness codex") {
 		t.Fatalf("doctor should name describe next:\n%s\n%s", err, out)
+	}
+}
+
+func TestUnknownHarnessListsNames(t *testing.T) {
+	home := testutil.Testdata(t, "home-a")
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	_, err := run(t, "--home", home, "--config", cfg, "describe", "harness", "not-a-thing")
+	if err == nil || !strings.Contains(err.Error(), "unknown harness") {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.Contains(err.Error(), "codex") || !strings.Contains(err.Error(), "cursor-agent") {
+		t.Fatalf("unknown harness should list valid names: %v", err)
+	}
+}
+
+func TestSyncMissingContextNamesSetContext(t *testing.T) {
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	_, err := run(t, "--config", cfg, "sync", "--from", "mba", "--to", "nosuch", "--harness", "codex", "--dry-run")
+	if err == nil {
+		t.Fatal("expected missing context")
+	}
+	if !strings.Contains(err.Error(), "set-context") {
+		t.Fatalf("missing context should name set-context: %v", err)
+	}
+}
+
+func TestGetContextsMissingFileNamesSetContext(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "missing.yaml")
+	out, err := run(t, "--config", cfgPath, "config", "get-contexts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "config file not created yet") || !strings.Contains(out, "set-context") {
+		t.Fatalf("first-run get-contexts should name set-context:\n%s", out)
 	}
 }

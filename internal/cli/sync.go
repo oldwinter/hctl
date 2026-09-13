@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -43,11 +44,11 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 			}
 			_, srcFS, srcHome, err := opts.openNamed(cfg, from)
 			if err != nil {
-				return err
+				return wrapMissingContext(err, opts.configPath)
 			}
 			_, dstFS, dstHome, err := opts.openNamed(cfg, to)
 			if err != nil {
-				return err
+				return wrapMissingContext(err, opts.configPath)
 			}
 			names := adapters.Names()
 			if harness != "" {
@@ -179,6 +180,16 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 	cmd.Flags().StringVar(&fields, "fields", "model,provider", "model,provider,secret-ref,secret")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show changes without writing")
 	return cmd
+}
+
+func wrapMissingContext(err error, configPath string) error {
+	if err == nil {
+		return nil
+	}
+	if strings.Contains(err.Error(), "not found") {
+		return fmt.Errorf("%w; add it with hctl config set-context NAME (see %s)", err, configPath)
+	}
+	return err
 }
 
 func splitCSV(s string) []string {

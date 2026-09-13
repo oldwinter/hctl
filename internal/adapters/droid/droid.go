@@ -101,6 +101,10 @@ func applyEndpointAndSecret(snap *model.Snapshot, baseURL, apiKey string) {
 	}
 }
 
+func (Adapter) UnsupportedDesiredFields() []string {
+	return []string{"provider", "secret-ref"}
+}
+
 func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
 	cfg, err := readSettings(fsys, home)
 	if err != nil {

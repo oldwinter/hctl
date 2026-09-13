@@ -60,3 +60,16 @@ func TestCurrentSchemaModelWriteAndUnsupportedFields(t *testing.T) {
 		}
 	}
 }
+
+func TestUnsupportedDesiredFieldsSkipSyncProvider(t *testing.T) {
+	got := Adapter{}.UnsupportedDesiredFields()
+	want := map[string]bool{"provider": true, "secret-ref": true}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for _, name := range got {
+		if !want[name] {
+			t.Fatalf("unexpected field %q in %v", name, got)
+		}
+	}
+}

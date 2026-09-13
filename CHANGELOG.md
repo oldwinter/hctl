@@ -13,6 +13,7 @@ Versioning: [SemVer](https://semver.org/).
 - `hctl get harness NAME` (and `get models NAME`) shows one inventory row; `-o json` emits that object.
 - Empty `get harnesses` (no config files) prints `Next: hctl get harnesses -o wide`.
 - `config set-context` that does not switch current-context names `hctl config use-context`.
+- Missing `~/.hctl/config.yaml` on `get-contexts` points at `set-context`.
 - Root help names the first commands. `get harnesses`, `get harness NAME`, `doctor`, and `describe harness NAME`.
 - Config identity provenance: `--config` / env / existing `~/.hctl/config.yaml` / existing `~/.harnessctl/config.yaml` / else create `~/.hctl/config.yaml`. Writes stay in place; legacy files are never copied or deleted.
 - Preferred env names `HCTL_HOME`, `HCTL_CONFIG`, `HCTL_BACKUP_DIR`, `HCTL_SSH` (legacy `HARNESSCTL_*` still works).
@@ -34,6 +35,10 @@ Versioning: [SemVer](https://semver.org/).
 - `config current-context` notes when the resolved file does not exist yet.
 - `just smoke` `diff -f` uses `--home testdata/home-a` instead of the real `$HOME`.
 - `diff -f` PATH column shows the current config path, matching `apply --dry-run`.
+- Default `sync --fields model,provider` skips unsupported provider / secret-ref on Factory Droid instead of failing the whole batch.
+- Unknown harness names list the valid set (`codex|claude|…`).
+- `diff harness NAME` without `--home-a` / `--contexts` / `--a` is usage (exit 2) and prints an example.
+- `sync` to a missing context names `config set-context`.
 - `just lint` findings: checked render/table writes, removed unused TOML edit types, and replaced empty test branches with assertions.
 - `hctl sync` without `--from`/`--to` exits 2 and prints a `--dry-run` example.
 - `hctl config use-context` without NAME exits 2 and names `get-contexts`.

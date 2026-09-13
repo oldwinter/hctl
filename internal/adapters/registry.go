@@ -53,7 +53,7 @@ func ByName(name string) (Adapter, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("unknown harness %q", name)
+	return nil, fmt.Errorf("unknown harness %q (want %s)", name, strings.Join(Names(), "|"))
 }
 
 // Names returns official harness names.

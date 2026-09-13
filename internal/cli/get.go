@@ -98,10 +98,13 @@ Examples:
 					}
 					return render.JSON(cmd.OutOrStdout(), rows)
 				}
-				return render.ModelsTable(cmd.OutOrStdout(), snaps)
+				if err := render.ModelsTable(cmd.OutOrStdout(), snaps); err != nil {
+					return err
+				}
 			default:
 				return writeErr(cmd, exitcode.Errorf(exitcode.Usage, "unknown resource %q (want %s)", args[0], getResources))
 			}
+			return nil
 		},
 	}
 }
