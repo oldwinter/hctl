@@ -1,0 +1,373 @@
+#!/usr/bin/env bash
+# Isolate and drive the real hctl binary the way a user does.
+# Invocation is documented in ../SKILL.md.
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+skill_root="$(cd "$script_dir/.." && pwd)"
+repo="$(cd "$skill_root/../../.." && pwd)"
+state_root="${HCTL_VERIFY_STATE_ROOT:-/tmp}"
+evidence_root="${HCTL_VERIFY_EVIDENCE:-$skill_root/artifacts}"
+
+usage() {
+	cat <<'EOF'
+verify-hctl launch [--run-id ID]
+verify-hctl doctor [RUN_ID]
+verify-hctl drive [--run-id ID] [--context NAME] [--probe] [--out FILE] -- [hctl args]
+verify-hctl status [RUN_ID]
+verify-hctl cleanup [RUN_ID]
+EOF
+}
+
+die() {
+	echo "verify-hctl: $*" >&2
+	exit 1
+}
+
+run_dir() {
+	local id="$1"
+	printf '%s/hctl-verify-%s' "$state_root" "$id"
+}
+
+state_file() {
+	printf '%s/state.env' "$(run_dir "$1")"
+}
+
+newest_run_id() {
+	local latest=""
+	local f
+	for f in "$state_root"/hctl-verify-*/state.env; do
+		[[ -e "$f" ]] || continue
+		if [[ -z "$latest" || "$f" -nt "$latest" ]]; then
+			latest="$f"
+		fi
+	done
+	[[ -n "$latest" ]] || return 1
+	basename "$(dirname "$latest")" | sed 's/^hctl-verify-//'
+}
+
+resolve_run_id() {
+	if [[ -n "${1:-}" ]]; then
+		printf '%s\n' "$1"
+		return
+	fi
+	if [[ -n "${HCTL_VERIFY_RUN_ID:-}" ]]; then
+		printf '%s\n' "$HCTL_VERIFY_RUN_ID"
+		return
+	fi
+	newest_run_id || die "no verification instance; run: $script_dir/verify-hctl launch"
+}
+
+load_state() {
+	local id
+	id="$(resolve_run_id "${1:-}")"
+	local sf
+	sf="$(state_file "$id")"
+	[[ -f "$sf" ]] || die "missing state $sf"
+	# shellcheck disable=SC1090
+	source "$sf"
+	[[ -n "${HCTL_VERIFY_BIN:-}" ]] || die "state $sf is incomplete"
+}
+
+leak_check() {
+	local text="$1"
+	local label="$2"
+	if grep -E 'sk-test-aaa|sk-test-bbb' <<<"$text" >/dev/null; then
+		die "plaintext fixture key leaked in $label"
+	fi
+}
+
+copy_tree() {
+	local src="$1"
+	local dest="$2"
+	mkdir -p "$dest"
+	cp -a "$src"/. "$dest"/
+}
+
+cmd_launch() {
+	local id=""
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--run-id)
+			id="${2:?}"
+			shift 2
+			;;
+		-h | --help)
+			usage
+			return 0
+			;;
+		*)
+			die "unknown launch flag: $1"
+			;;
+		esac
+	done
+	if [[ -z "$id" ]]; then
+		id="$(date +%Y%m%dT%H%M%S)-$$"
+	fi
+
+	local ws bin_dir
+	ws="$(run_dir "$id")"
+	if [[ -e "$ws" ]]; then
+		die "workspace already exists: $ws (cleanup first or pick another --run-id)"
+	fi
+	mkdir -p "$ws/bin" "$ws/backups" "$ws/homes"
+
+	local version commit built
+	version="$(sed -n 's/^[[:space:]]*Version = "\([^"]*\)".*/\1/p' "$repo/internal/cli/root.go" | head -1)"
+	[[ -n "$version" ]] || die "could not read Version from internal/cli/root.go"
+	commit="$(git -C "$repo" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+	built="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+	local ldflags
+	ldflags="-X github.com/oldwinter/hctl/internal/cli.Version=${version} -X github.com/oldwinter/hctl/internal/cli.Commit=${commit} -X github.com/oldwinter/hctl/internal/cli.Date=${built}"
+
+	echo "verify-hctl: building hctl ${version} (${commit}) into ${ws}/bin"
+	go build -ldflags="$ldflags" -o "$ws/bin/hctl" "$repo/cmd/hctl"
+	go build -ldflags="$ldflags" -o "$ws/bin/harnessctl" "$repo/cmd/harnessctl"
+	bin_dir="$ws/bin"
+
+	copy_tree "$repo/testdata/home-a" "$ws/homes/home-a"
+	copy_tree "$repo/testdata/home-b" "$ws/homes/home-b"
+	copy_tree "$repo/testdata/home-theme" "$ws/homes/home-theme"
+	copy_tree "$repo/testdata/home-drift" "$ws/homes/home-drift"
+	copy_tree "$repo/testdata/home-empty" "$ws/homes/home-empty"
+	cp "$repo/testdata/desired.toml" "$ws/desired.toml"
+
+	local cfg
+	cfg="$ws/config.yaml"
+	cat >"$cfg" <<EOF
+apiVersion: harnessctl/v1
+kind: Config
+current-context: mba
+contexts:
+  - name: mba
+    context:
+      kind: local
+      home: ${ws}/homes/home-a
+  - name: box
+    context:
+      kind: local
+      home: ${ws}/homes/home-b
+  - name: theme
+    context:
+      kind: local
+      home: ${ws}/homes/home-theme
+  - name: drift
+    context:
+      kind: local
+      home: ${ws}/homes/home-drift
+  - name: empty
+    context:
+      kind: local
+      home: ${ws}/homes/home-empty
+EOF
+
+	cat >"$(state_file "$id")" <<EOF
+HCTL_VERIFY_RUN_ID=${id}
+HCTL_VERIFY_REPO=${repo}
+HCTL_VERIFY_SKILL=${skill_root}
+HCTL_VERIFY_WS=${ws}
+HCTL_VERIFY_BIN=${bin_dir}/hctl
+HCTL_VERIFY_ALIAS=${bin_dir}/harnessctl
+HCTL_VERIFY_CONFIG=${cfg}
+HCTL_VERIFY_BACKUP=${ws}/backups
+HCTL_VERIFY_DESIRED=${ws}/desired.toml
+HCTL_VERIFY_HOME_A=${ws}/homes/home-a
+HCTL_VERIFY_HOME_B=${ws}/homes/home-b
+HCTL_VERIFY_HOME_THEME=${ws}/homes/home-theme
+HCTL_VERIFY_HOME_DRIFT=${ws}/homes/home-drift
+HCTL_VERIFY_HOME_EMPTY=${ws}/homes/home-empty
+HCTL_VERIFY_EVIDENCE=${evidence_root}
+HCTL_VERIFY_VERSION=${version}
+HCTL_VERIFY_COMMIT=${commit}
+EOF
+
+	local ver
+	ver="$("$bin_dir/hctl" version)"
+	echo "$ver"
+	echo "READY: workspace ${ws}"
+	echo "RUN_ID=${id}"
+	echo "STATE=$(state_file "$id")"
+	echo "BIN=${bin_dir}/hctl"
+	echo "Next: ${script_dir}/verify-hctl doctor ${id}"
+}
+
+cmd_doctor() {
+	local id="${1:-}"
+	load_state "$id"
+	local ok=0
+	check() {
+		local label="$1"
+		shift
+		if "$@"; then
+			echo "ok  $label"
+		else
+			echo "FAIL $label" >&2
+			ok=1
+		fi
+	}
+
+	check "binary exists and is executable" test -x "$HCTL_VERIFY_BIN"
+	check "alias binary exists" test -x "$HCTL_VERIFY_ALIAS"
+	check "workspace is under ${state_root}/hctl-verify-" [[ "$HCTL_VERIFY_WS" == "$state_root/hctl-verify-"* ]]
+	check "homes are copies, not testdata originals" [[ "$HCTL_VERIFY_HOME_A" != "$HCTL_VERIFY_REPO/testdata/"* ]]
+	check "mba home has testdata/home-a Codex fixture" test -f "$HCTL_VERIFY_HOME_A/.codex/config.toml"
+	check "box home has testdata/home-b Codex fixture" test -f "$HCTL_VERIFY_HOME_B/.codex/config.toml"
+	check "config file exists" test -f "$HCTL_VERIFY_CONFIG"
+	check "backup dir exists" test -d "$HCTL_VERIFY_BACKUP"
+
+	local ver
+	ver="$("$HCTL_VERIFY_BIN" version)"
+	check "version line names this build" grep -q "hctl version ${HCTL_VERIFY_VERSION}" <<<"$ver"
+	check "version commit matches launch" grep -q "commit: ${HCTL_VERIFY_COMMIT}" <<<"$ver"
+
+	local inventory
+	inventory="$(
+		HCTL_SSH=0 HCTL_BACKUP_DIR="$HCTL_VERIFY_BACKUP" \
+			"$HCTL_VERIFY_BIN" --config "$HCTL_VERIFY_CONFIG" --no-probe get harnesses
+	)" || true
+	check "get harnesses lists codex" grep -q '^codex' <<<"$inventory"
+	check "get harnesses lists claude" grep -q '^claude' <<<"$inventory"
+	check "inventory header present" grep -q '^NAME' <<<"$inventory"
+	if grep -E 'sk-test-aaa|sk-test-bbb' <<<"$inventory" >/dev/null; then
+		echo "FAIL plaintext fixture key leaked in doctor inventory" >&2
+		ok=1
+	else
+		echo "ok  inventory does not print fixture keys"
+	fi
+
+	if [[ "$ok" -ne 0 ]]; then
+		die "instance is not worth driving"
+	fi
+	echo "doctor: ready RUN_ID=${HCTL_VERIFY_RUN_ID}"
+}
+
+cmd_drive() {
+	local id="" context="" probe=0 out=""
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--run-id)
+			id="${2:?}"
+			shift 2
+			;;
+		--context)
+			context="${2:?}"
+			shift 2
+			;;
+		--probe)
+			probe=1
+			shift
+			;;
+		--out)
+			out="${2:?}"
+			shift 2
+			;;
+		--)
+			shift
+			break
+			;;
+		-h | --help)
+			usage
+			return 0
+			;;
+		*)
+			die "unknown drive flag: $1 (put hctl args after --)"
+			;;
+		esac
+	done
+	[[ $# -gt 0 ]] || die "drive needs hctl args after --"
+	load_state "$id"
+
+	local args=()
+	args+=(--config "$HCTL_VERIFY_CONFIG")
+	if [[ "$probe" -eq 0 ]]; then
+		args+=(--no-probe)
+	fi
+	if [[ -n "$context" ]]; then
+		args+=(--context "$context")
+	fi
+	args+=("$@")
+
+	local cmd_line
+	cmd_line="$(printf '%q ' "$HCTL_VERIFY_BIN" "${args[@]}")"
+
+	local errf
+	errf="$(mktemp)"
+	set +e
+	local stdout stderr status
+	stdout="$(
+		HCTL_SSH=0 HCTL_BACKUP_DIR="$HCTL_VERIFY_BACKUP" \
+			"$HCTL_VERIFY_BIN" "${args[@]}" 2>"$errf"
+	)"
+	status=$?
+	stderr="$(cat "$errf" 2>/dev/null || true)"
+	rm -f "$errf"
+	set -e
+
+	printf '%s' "$stdout"
+	if [[ -n "$stderr" ]]; then
+		printf '%s' "$stderr" >&2
+		if [[ "$stdout" != *$'\n' && -n "$stdout" ]]; then
+			printf '\n' >&2
+		fi
+	fi
+
+	leak_check "${stdout}${stderr}" "drive output"
+
+	if [[ -n "$out" ]]; then
+		if [[ "$out" != /* ]]; then
+			out="$HCTL_VERIFY_EVIDENCE/$out"
+		fi
+		mkdir -p "$(dirname "$out")"
+		{
+			echo "command: $cmd_line"
+			echo "run_id: $HCTL_VERIFY_RUN_ID"
+			echo "exit: $status"
+			echo "----- stdout -----"
+			printf '%s\n' "$stdout"
+			echo "----- stderr -----"
+			printf '%s\n' "$stderr"
+		} >"$out"
+		echo "evidence: $out" >&2
+	fi
+	return "$status"
+}
+
+cmd_status() {
+	load_state "${1:-}"
+	echo "RUN_ID=${HCTL_VERIFY_RUN_ID}"
+	echo "BIN=${HCTL_VERIFY_BIN}"
+	echo "CONFIG=${HCTL_VERIFY_CONFIG}"
+	echo "WS=${HCTL_VERIFY_WS}"
+	echo "EVIDENCE=${HCTL_VERIFY_EVIDENCE}"
+}
+
+cmd_cleanup() {
+	local id="${1:-}"
+	load_state "$id"
+	[[ -n "$HCTL_VERIFY_WS" ]] || die "empty workspace path"
+	[[ "$HCTL_VERIFY_WS" == "$state_root/hctl-verify-"* ]] || die "refusing to remove unexpected path: $HCTL_VERIFY_WS"
+	rm -rf "$HCTL_VERIFY_WS"
+	echo "cleaned ${HCTL_VERIFY_WS}"
+	echo "evidence kept at ${HCTL_VERIFY_EVIDENCE}"
+}
+
+main() {
+	local cmd="${1:-}"
+	shift || true
+	case "$cmd" in
+	launch) cmd_launch "$@" ;;
+	doctor) cmd_doctor "$@" ;;
+	drive) cmd_drive "$@" ;;
+	status) cmd_status "$@" ;;
+	cleanup) cmd_cleanup "$@" ;;
+	-h | --help | help | "")
+		usage
+		[[ -n "$cmd" && "$cmd" != help && "$cmd" != -h && "$cmd" != --help ]] || exit 0
+		;;
+	*)
+		die "unknown command: $cmd"
+		;;
+	esac
+}
+
+main "$@"
