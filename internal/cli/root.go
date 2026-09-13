@@ -62,7 +62,7 @@ func (o *options) validateOutput() error {
 	case "", "json", "wide":
 		return nil
 	default:
-		return exitcode.Errorf(exitcode.Usage, "unknown output %q (want json|wide)", o.output)
+		return exitcode.Errorf(exitcode.Usage, "unknown output %q (want json|wide). Next: hctl get harnesses -o json", o.output)
 	}
 }
 

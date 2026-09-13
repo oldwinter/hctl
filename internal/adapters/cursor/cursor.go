@@ -17,7 +17,7 @@ type Adapter struct{}
 
 func (Adapter) Name() string          { return "cursor-agent" }
 func (Adapter) Aliases() []string     { return []string{"cursor"} }
-func (Adapter) BinaryNames() []string { return []string{"cursor-agent", "cursor"} }
+func (Adapter) BinaryNames() []string { return []string{"cursor-agent"} }
 func (Adapter) ConfigRelPaths() []string {
 	return []string{".cursor/cli-config.json"}
 }
@@ -79,14 +79,24 @@ func probeLogin() (loggedIn bool, note string) {
 	if err != nil {
 		return false, ""
 	}
-	s := strings.ToLower(string(out))
-	if strings.Contains(s, "logged") || strings.Contains(s, "authenticated") {
-		return true, "cursor-agent status: logged in"
-	}
-	if strings.Contains(s, "login") || strings.Contains(s, "unauth") {
+	return classifyLogin(string(out))
+}
+
+func classifyLogin(raw string) (loggedIn bool, note string) {
+	s := strings.ToLower(raw)
+	switch {
+	case strings.Contains(s, "not logged"),
+		strings.Contains(s, "logged out"),
+		strings.Contains(s, "unauth"),
+		strings.Contains(s, "not authenticated"):
 		return false, "cursor-agent status: not logged in"
+	case strings.Contains(s, "logged in"), strings.Contains(s, "authenticated"):
+		return true, "cursor-agent status: logged in"
+	case strings.Contains(s, "login"):
+		return false, "cursor-agent status: not logged in"
+	default:
+		return false, ""
 	}
-	return false, ""
 }
 
 func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {

@@ -116,7 +116,7 @@ SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`，整段命令 10s �
 | `config get-contexts` / `current-context` / `use-context` / `set-context` | 环境 | 0 / 1 |
 | `get harnesses` / `get models` / `get harness NAME` | 库存表；`--json` 与 `-o json` 等价；`-o wide` 加配置路径 | 0 |
 | `describe harness NAME` | 单条快照 | 0 |
-| `doctor` | 安装 / 配置 / 密钥 / onboarding / **key-drift** | 0；解析错误为 5 |
+| `doctor` | 安装 / 配置 / 密钥 / onboarding / **key-drift**（人表有 DRIFT 列） | 0；解析错误为 5 |
 | `diff harness NAME --contexts mba,box` | 两边快照 | 0 / 4(ssh) |
 | `diff harness NAME --home-a A --home-b B` | 两棵 home | 0 |
 | `diff -f desired.toml` | 期望 vs 当前 | 0 |
@@ -144,7 +144,7 @@ hctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
 
 `--no-probe` 保留本地 `PATH` / SSH `command -v` 安装检测和配置文件读取，但跳过本地 `--version` 与 `cursor-agent status` 子进程。它适合离线 inventory / observation；普通命令默认行为不变。
 
-**`set provider` 诚实行为：** Claude 的供应商是隐式 anthropic，Grok 从 `base_url` 推断，二者**不写 provider 字段**。对这些 harness 执行 `set provider`（含 `--dry-run`）会立刻返回用法错误，而不是静默成功后再在 verify 里失败。
+**`set provider` 诚实行为：** Claude 的供应商是隐式 anthropic，Grok 从 `base_url` 推断，Factory Droid 当前 custom models 不写 provider。对这些 harness 执行 `set provider`（含 `--dry-run`）会立刻返回用法错误，而不是静默成功后再在 verify 里失败。未知的 Codex `model_providers` / Hermes `providers` / Pi `models.json` 名同样立刻拒绝。Grok 改 default 时若目标没有 `[model."…"]` 段，会从当前 default 表复制后再切换，避免观察层丢 host/secret。
 
 ### dotfiles ownership
 

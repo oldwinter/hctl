@@ -37,7 +37,7 @@ Preconditions:
 ## Gotchas
 
 - Already-converged `set` (Codex already `o4-mini`) skips backup and write. Prove dry-run/write from `gpt-5.2-codex`, or reset the file from `testdata/home-a/.codex/config.toml` first.
-- Claude and Grok `set provider` must fail on `--dry-run` too. A silent `no changes` is a bug.
+- Claude, Grok, and Factory Droid `set provider` must fail on `--dry-run` too. A silent `no changes` is a bug.
 - Hermes/OpenCode/pi/droid have their own write rules (Hermes inline key refuse, droid provider unsupported). This feature file does not cover them; do not claim they were verified here.
 - Ownership manifests fail closed. If an agent creates `~/.config/harness/ownership.json` inside the copy, `set` will refuse. That is a different path.
 - JSONC comments are dropped on write for OpenCode. Codex is TOML; comments on unrelated keys stay.

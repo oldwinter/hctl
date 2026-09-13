@@ -12,6 +12,7 @@ import (
 	"github.com/oldwinter/hctl/internal/adapters/hermes"
 	"github.com/oldwinter/hctl/internal/adapters/opencode"
 	"github.com/oldwinter/hctl/internal/adapters/pi"
+	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/model"
 )
@@ -53,7 +54,7 @@ func ByName(name string) (Adapter, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("unknown harness %q (want %s)", name, strings.Join(Names(), "|"))
+	return nil, exitcode.Errorf(exitcode.Usage, "unknown harness %q (want %s)", name, strings.Join(Names(), "|"))
 }
 
 // Names returns official harness names.
@@ -112,6 +113,9 @@ func ReadOne(a Adapter, fsys fsx.FS, home string) (model.Snapshot, error) {
 	}
 	if snap.Name == "" {
 		snap.Name = a.Name()
+	}
+	if len(snap.NameAliases) == 0 {
+		snap.NameAliases = append([]string(nil), a.Aliases()...)
 	}
 	path, ver, ok := DetectBinaryFS(fsys, a.BinaryNames())
 	snap.Installed = ok

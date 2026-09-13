@@ -3,6 +3,7 @@ run_id: maintain-840a
 exit: 0
 ----- stdout -----
 Name:              codex
+Also known as:     openai-codex
 Context:           box
 Installed:         no
 Config Found:      true

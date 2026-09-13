@@ -9,5 +9,6 @@ codex     model  gpt-5.2-codex              o4-mini                    /tmp/hctl
 grok      model  grok-4.6                   grok-4.5                   /tmp/hctl-verify-maintain-840a/homes/home-a/.grok/config.toml
 hermes    model  anthropic/claude-opus-4.6  anthropic/claude-sonnet-4  /tmp/hctl-verify-maintain-840a/homes/home-a/.hermes/config.yaml
 opencode  model  acme/gpt-5                 acme/gpt-4.1               /tmp/hctl-verify-maintain-840a/homes/home-a/.config/opencode/opencode.jsonc
+note: writing JSONC drops comments and trailing commas
 ----- stderr -----
 

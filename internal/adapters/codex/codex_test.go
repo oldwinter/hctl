@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
 	"github.com/oldwinter/hctl/internal/secret"
 	"github.com/oldwinter/hctl/internal/testutil"
 )
@@ -32,6 +33,13 @@ func TestReadHomeA(t *testing.T) {
 	}
 	if strings.Contains(snap.String(), "sk-test-aaa") {
 		t.Fatalf("String leaked secret: %s", snap.String())
+	}
+}
+
+func TestValidateDesiredRejectsUnknownProvider(t *testing.T) {
+	err := (Adapter{}).ValidateDesired(fsx.Local{}, testutil.Testdata(t, "home-a"), model.Desired{Provider: "openai"})
+	if err == nil || !strings.Contains(err.Error(), "model_providers") {
+		t.Fatalf("err=%v", err)
 	}
 }
 

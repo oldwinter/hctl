@@ -9,6 +9,7 @@ import (
 // It never stores plaintext secrets — only a fingerprint and/or env-var ref.
 type Snapshot struct {
 	Name              string            `json:"name"`
+	NameAliases       []string          `json:"nameAliases,omitempty"`
 	Installed         bool              `json:"installed"`
 	InstalledPath     string            `json:"installedPath,omitempty"`
 	Version           string            `json:"version,omitempty"`
@@ -28,21 +29,30 @@ type Snapshot struct {
 
 // String is a one-line inventory summary. It must never include raw keys.
 func (s Snapshot) String() string {
-	secret := "-"
-	switch {
-	case s.SecretFingerprint != "":
-		secret = "sha256:" + s.SecretFingerprint
-	case s.SecretRef != "":
-		secret = "env:" + s.SecretRef
-	case s.SecretPresent:
-		secret = "present"
-	}
+	secret := secretSummary(s)
 	installed := "no"
 	if s.Installed {
 		installed = "yes"
 	}
 	return fmt.Sprintf("%s installed=%s provider=%s model=%s host=%s secret=%s",
 		s.Name, installed, dash(s.Provider), dash(s.DefaultModel), dash(s.BaseURLHost), secret)
+}
+
+func secretSummary(s Snapshot) string {
+	var parts []string
+	if s.SecretFingerprint != "" {
+		parts = append(parts, "sha256:"+s.SecretFingerprint)
+	}
+	if s.SecretRef != "" {
+		parts = append(parts, "env:"+s.SecretRef)
+	}
+	if len(parts) > 0 {
+		return strings.Join(parts, " ")
+	}
+	if s.SecretPresent {
+		return "present"
+	}
+	return "-"
 }
 
 func dash(v string) string {
@@ -77,10 +87,12 @@ type Change struct {
 
 // ApplyReport is the JSON schema for set/apply/sync.
 type ApplyReport struct {
-	DryRun   bool     `json:"dryRun"`
-	Changes  []Change `json:"changes"`
-	Backups  []string `json:"backups,omitempty"`
-	Verified bool     `json:"verified,omitempty"`
+	DryRun   bool         `json:"dryRun"`
+	Changes  []Change     `json:"changes"`
+	Backups  []string     `json:"backups,omitempty"`
+	Verified bool         `json:"verified,omitempty"`
+	Secrets  []SecretCopy `json:"secrets,omitempty"`
+	Notes    []string     `json:"notes,omitempty"`
 }
 
 // SecretCopy is a sync secret transfer record (fingerprints only).

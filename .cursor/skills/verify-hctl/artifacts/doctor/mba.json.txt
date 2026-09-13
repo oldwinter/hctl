@@ -36,7 +36,8 @@ exit: 0
     "installed": "missing",
     "config": "ok",
     "key": "ok",
-    "onboarding": "ok"
+    "onboarding": "ok",
+    "message": "next write drops JSONC comments and trailing commas"
   },
   {
     "name": "pi",

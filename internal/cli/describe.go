@@ -7,6 +7,7 @@ import (
 
 	"github.com/oldwinter/hctl/internal/adapters"
 	"github.com/oldwinter/hctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/model"
 	"github.com/oldwinter/hctl/internal/render"
 )
 
@@ -37,11 +38,32 @@ func newDescribeCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return writeErr(cmd, err)
 			}
+			appendProviderWriteNote(&snap, a)
 			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), snap)
 			}
 			return render.Describe(cmd.OutOrStdout(), ctxName, snap)
 		},
+	}
+}
+
+func appendProviderWriteNote(snap *model.Snapshot, a adapters.Adapter) {
+	u, ok := a.(interface{ UnsupportedDesiredFields() []string })
+	if !ok {
+		return
+	}
+	for _, n := range u.UnsupportedDesiredFields() {
+		if n != "provider" {
+			continue
+		}
+		switch a.Name() {
+		case "claude":
+			snap.Notes = append(snap.Notes, "provider is implicit anthropic and is not writable")
+		case "grok":
+			snap.Notes = append(snap.Notes, "provider is inferred from base_url and is not writable")
+		case "droid":
+			snap.Notes = append(snap.Notes, "provider is not writable for current Factory Droid custom models")
+		}
 	}
 }
 

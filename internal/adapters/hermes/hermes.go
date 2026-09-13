@@ -2,6 +2,7 @@ package hermes
 
 import (
 	"net/url"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -202,6 +203,27 @@ func firstNonEmpty(values ...string) string {
 }
 
 func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
+	if d.Provider != "" {
+		cfg, _, _, err := readActiveConfig(fsys, home, d.Provider)
+		if err != nil {
+			return err
+		}
+		id := strings.TrimPrefix(d.Provider, "custom:")
+		if len(cfg.Providers) > 0 {
+			_, ok := cfg.Providers[d.Provider]
+			if !ok {
+				_, ok = cfg.Providers[id]
+			}
+			if !ok {
+				names := make([]string, 0, len(cfg.Providers))
+				for name := range cfg.Providers {
+					names = append(names, name)
+				}
+				sort.Strings(names)
+				return exitcode.Errorf(exitcode.Usage, "hermes provider %q is not in providers; have %s", d.Provider, strings.Join(names, ", "))
+			}
+		}
+	}
 	if d.SecretRef == "" {
 		return nil
 	}

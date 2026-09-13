@@ -1,9 +1,11 @@
 package opencode
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/oldwinter/hctl/internal/edit"
+	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/jsonc"
 	"github.com/oldwinter/hctl/internal/model"
@@ -49,6 +51,9 @@ func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	if err := jsonc.Unmarshal(data, &cfg); err != nil {
 		snap.ParseError = err.Error()
 		return snap, nil
+	}
+	if jsonc.HasCommentsOrTrailingCommas(data) {
+		snap.Notes = append(snap.Notes, "next write drops JSONC comments and trailing commas")
 	}
 	snap.DefaultModel = cfg.Model
 	provID := ""
@@ -130,7 +135,68 @@ func asString(v any) string {
 	return s
 }
 
+func providerNodes(cfg file) map[string]providerNode {
+	if cfg.Provider != nil {
+		return cfg.Provider
+	}
+	return cfg.Providers
+}
+
+func listedProviders(nodes map[string]providerNode) string {
+	names := make([]string, 0, len(nodes))
+	for name := range nodes {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
+}
+
+func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
+	if d.Provider != "" && strings.Contains(d.Provider, "/") {
+		return exitcode.Errorf(exitcode.Usage, "set provider wants a provider id, not provider/model (example: hctl set provider opencode acme)")
+	}
+	_, data, err := readConfig(fsys, home)
+	if err != nil || len(data) == 0 {
+		return err
+	}
+	var cfg file
+	if err := jsonc.Unmarshal(data, &cfg); err != nil {
+		return exitcode.Errorf(exitcode.Parse, "opencode config is invalid")
+	}
+	nodes := providerNodes(cfg)
+	if d.Provider != "" && len(nodes) > 0 {
+		if _, ok := nodes[d.Provider]; !ok {
+			return exitcode.Errorf(exitcode.Usage, "opencode provider %q is not in the config; have %s", d.Provider, listedProviders(nodes))
+		}
+	}
+	modelVal := d.Model
+	if modelVal == "" {
+		modelVal = cfg.Model
+	}
+	if d.Provider == "" && modelVal != "" && !strings.Contains(modelVal, "/") && len(nodes) > 0 {
+		if i := strings.IndexByte(cfg.Model, '/'); i > 0 {
+			return nil
+		}
+		if len(nodes) != 1 {
+			return exitcode.Errorf(exitcode.Usage, "opencode model %q needs provider/model form; have %s", modelVal, listedProviders(nodes))
+		}
+	}
+	if i := strings.IndexByte(modelVal, '/'); i > 0 && len(nodes) > 0 {
+		prov := modelVal[:i]
+		if d.Provider != "" {
+			prov = d.Provider
+		}
+		if _, ok := nodes[prov]; !ok {
+			return exitcode.Errorf(exitcode.Usage, "opencode provider %q is not in the config; have %s", prov, listedProviders(nodes))
+		}
+	}
+	return nil
+}
+
 func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
+	if err := a.ValidateDesired(fsys, home, d); err != nil {
+		return nil, err
+	}
 	used, data, err := readConfig(fsys, home)
 	if err != nil {
 		return nil, err
@@ -138,10 +204,13 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 	if used == "" {
 		used = fsys.Join(home, ".config", "opencode", "opencode.jsonc")
 	}
+	snap, _ := a.Read(fsys, home)
 	modelVal := d.Model
+	if modelVal != "" && !strings.Contains(modelVal, "/") && snap.Provider != "" {
+		modelVal = snap.Provider + "/" + modelVal
+	}
 	if d.Provider != "" {
 		if modelVal == "" {
-			snap, _ := a.Read(fsys, home)
 			modelVal = snap.DefaultModel
 		}
 		if i := strings.IndexByte(modelVal, '/'); i > 0 {
@@ -234,7 +303,20 @@ func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
 	if val == "" && ref != "" {
 		val = "{env:" + ref + "}"
 	}
-	data, err = edit.SetJSONC(data, []string{"provider", prov, "options", "apiKey"}, val)
+	root, optsKey := "provider", "options"
+	var cfg file
+	if jsonc.Unmarshal(data, &cfg) == nil {
+		if cfg.Provider == nil && cfg.Providers != nil {
+			root = "providers"
+		}
+		nodes := providerNodes(cfg)
+		if n, ok := nodes[prov]; ok {
+			if n.Options == nil && n.Settings != nil {
+				optsKey = "settings"
+			}
+		}
+	}
+	data, err = edit.SetJSONC(data, []string{root, prov, optsKey, "apiKey"}, val)
 	if err != nil {
 		return err
 	}

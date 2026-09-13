@@ -3,6 +3,7 @@ run_id: proof1
 exit: 0
 ----- stdout -----
 Name:              codex
+Also known as:     openai-codex
 Context:           mba
 Installed:         no
 Config Found:      true

@@ -2,14 +2,14 @@ command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maint
 run_id: maintain-840a
 exit: 0
 ----- stdout -----
-NAME          INSTALLED  CONFIG   KEY      ONBOARDING  MESSAGE
-codex         missing    ok       ok       ok          key drift on host sub2api.example (claude,codex)
-claude        missing    ok       ok       needed      missing ~/.claude.json — first-run onboarding needed; key drift on host sub2api.example (claude,codex)
-grok          missing    missing  missing  needed      no config file
-hermes        missing    missing  missing  needed      no config file
-opencode      missing    missing  missing  needed      no config file
-pi            missing    missing  missing  needed      no config file
-droid         missing    missing  missing  needed      no config file
-cursor-agent  missing    missing  missing  needed      no config file
+NAME          INSTALLED  CONFIG   KEY      ONBOARDING  DRIFT      MESSAGE
+codex         missing    ok       ok       ok          key-drift  key drift on host sub2api.example (claude,codex)
+claude        missing    ok       ok       needed      key-drift  missing ~/.claude.json — first-run onboarding needed; key drift on host sub2api.example (claude,codex)
+grok          missing    missing  missing  needed      -          no config file
+hermes        missing    missing  missing  needed      -          no config file
+opencode      missing    missing  missing  needed      -          no config file
+pi            missing    missing  missing  needed      -          no config file
+droid         missing    missing  missing  needed      -          no config file
+cursor-agent  missing    missing  missing  needed      -          no config file
 ----- stderr -----
 
