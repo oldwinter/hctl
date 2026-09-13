@@ -61,7 +61,11 @@ func ChangesFromDesired(harness string, snap Snapshot, d Desired) []Change {
 		if want == got {
 			continue
 		}
-		out = append(out, Change{Harness: harness, Field: f.name, From: got, To: want})
+		ch := Change{Harness: harness, Field: f.name, From: got, To: want}
+		if len(snap.ConfigPaths) > 0 {
+			ch.Path = snap.ConfigPaths[0]
+		}
+		out = append(out, ch)
 	}
 	return out
 }

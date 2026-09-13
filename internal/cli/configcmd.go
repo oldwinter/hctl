@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -24,7 +25,7 @@ func newConfigCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			if opts.jsonOut {
+			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), cfg)
 			}
 			return render.ContextsTable(cmd.OutOrStdout(), cfg)
@@ -39,13 +40,17 @@ func newConfigCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			if opts.jsonOut {
+			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), map[string]string{
 					"currentContext": cfg.CurrentContext,
 					"config":         opts.configPath,
 				})
 			}
 			if _, err := fmt.Fprintln(cmd.OutOrStdout(), cfg.CurrentContext); err != nil {
+				return err
+			}
+			if _, err := os.Stat(opts.configPath); os.IsNotExist(err) {
+				_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s (not created yet)\n", opts.configPath)
 				return err
 			}
 			_, err = fmt.Fprintln(cmd.OutOrStdout(), opts.configPath)
@@ -94,7 +99,12 @@ func newConfigCmd(opts *options) *cobra.Command {
 			if err := config.Save(opts.configPath, cfg); err != nil {
 				return err
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Context %q saved.\n", args[0])
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Context %q saved.\n", args[0]); err != nil {
+				return err
+			}
+			if cfg.CurrentContext != args[0] {
+				_, err = fmt.Fprintf(cmd.OutOrStdout(), "Next: hctl config use-context %s\n", args[0])
+			}
 			return err
 		},
 	}
@@ -118,7 +128,11 @@ func newConfigCmd(opts *options) *cobra.Command {
 				return writeErr(cmd, err)
 			}
 			if err := cfg.UseContext(args[0]); err != nil {
-				return writeErr(cmd, fmt.Errorf("%w; add it under contexts: in %s (see README for a box/ssh example)", err, opts.configPath))
+				hint := fmt.Sprintf("add it under contexts: in %s (see README for a box/ssh example)", opts.configPath)
+				if _, statErr := os.Stat(opts.configPath); os.IsNotExist(statErr) {
+					hint = fmt.Sprintf("Next: hctl config set-context %s --kind local", args[0])
+				}
+				return writeErr(cmd, fmt.Errorf("%w; %s", err, hint))
 			}
 			if err := config.Save(opts.configPath, cfg); err != nil {
 				return writeErr(cmd, err)

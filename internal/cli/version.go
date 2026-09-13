@@ -6,9 +6,11 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+
+	"github.com/oldwinter/hctl/internal/render"
 )
 
-func newVersionCmd() *cobra.Command {
+func newVersionCmd(opts *options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print hctl version, commit, and build date",
@@ -23,6 +25,14 @@ just build / just release inject Version, Commit, and Date via -ldflags
 				name = "harnessctl"
 			}
 			out := cmd.OutOrStdout()
+			if opts.wantJSON() {
+				return render.JSON(out, map[string]string{
+					"name":    name,
+					"version": Version,
+					"commit":  Commit,
+					"date":    Date,
+				})
+			}
 			if _, err := fmt.Fprintf(out, "%s version %s\n", name, Version); err != nil {
 				return err
 			}

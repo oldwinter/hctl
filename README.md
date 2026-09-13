@@ -64,6 +64,8 @@ hctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses
 hctl --no-probe --home testdata/home-a --config testdata/harnessctl.yaml --json get harnesses
 hctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses -o wide
 hctl --home testdata/home-a --config testdata/harnessctl.yaml --json get models
+hctl --home testdata/home-a --config testdata/harnessctl.yaml -o json get models
+hctl --home testdata/home-a --config testdata/harnessctl.yaml get harness codex
 ```
 
 环境变量优先读 `HCTL_*`，再回退旧名 `HARNESSCTL_*`：`HOME`、`CONFIG`、`BACKUP_DIR`、`SSH=0`（测试时禁止真 SSH）。
@@ -112,7 +114,7 @@ SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`，整段命令 10s �
 | --- | --- | --- |
 | `version` | 版本 / commit / date | 0 |
 | `config get-contexts` / `current-context` / `use-context` / `set-context` | 环境 | 0 / 1 |
-| `get harnesses` / `get models` | 库存表；`--json` / `-o wide` | 0 |
+| `get harnesses` / `get models` / `get harness NAME` | 库存表；`--json` 与 `-o json` 等价；`-o wide` 加配置路径 | 0 |
 | `describe harness NAME` | 单条快照 | 0 |
 | `doctor` | 安装 / 配置 / 密钥 / onboarding / **key-drift** | 0；解析错误为 5 |
 | `diff harness NAME --contexts mba,box` | 两边快照 | 0 / 4(ssh) |

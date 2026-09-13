@@ -14,6 +14,8 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 help_out="$("$bin" --help)"
 echo "$help_out" | grep -q 'hctl get harnesses' || fail "root help missing get example"
+echo "$help_out" | grep -q 'hctl get harnesses -o json' || fail "root help missing -o json example"
+echo "$help_out" | grep -q 'hctl get harness codex' || fail "root help missing get NAME example"
 echo "$help_out" | grep -q 'hctl doctor' || fail "root help missing doctor example"
 
 ver="$("$bin" version)"
@@ -68,6 +70,26 @@ home="$root/testdata/home-a"
 cfg="$root/testdata/harnessctl.yaml"
 list_out="$("$bin" --home "$home" --config "$cfg" --no-probe list harnesses)"
 echo "$list_out" | grep -q codex || fail "list harnesses did not show codex"
+
+one_out="$("$bin" --home "$home" --config "$cfg" --no-probe get harness codex)"
+echo "$one_out" | grep -q codex || fail "get harness NAME did not show codex"
+echo "$one_out" | grep -q claude && fail "get harness NAME listed another harness"
+
+models_json="$("$bin" --home "$home" --config "$cfg" --no-probe -o json get models)"
+echo "$models_json" | grep -q '"harness": "codex"' || fail "get models -o json missing harness field"
+
+set +e
+yaml_err="$("$bin" -o yaml get harnesses 2>&1)"
+yaml_code=$?
+set -e
+[[ "$yaml_code" -eq 2 ]] || fail "unknown -o yaml exit=$yaml_code want 2"
+echo "$yaml_err" | grep -q 'json|wide' || fail "unknown -o yaml error has no json|wide hint"
+
+set +e
+comp_err="$("$bin" completion tcsh 2>&1)"
+comp_code=$?
+set -e
+[[ "$comp_code" -eq 2 ]] || fail "completion unknown shell exit=$comp_code want 2"
 
 ctx_out="$("$bin" --config "$cfg" config current-context)"
 echo "$ctx_out" | grep -q mba || fail "current-context missing name"

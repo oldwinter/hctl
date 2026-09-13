@@ -72,7 +72,7 @@ format-preservation caveats (JSONC comments are dropped).`,
 			if err != nil {
 				return err
 			}
-			if opts.jsonOut {
+			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), rep)
 			}
 			return render.ApplyReport(cmd.OutOrStdout(), rep)

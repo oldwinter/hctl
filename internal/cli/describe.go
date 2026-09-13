@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -24,7 +23,7 @@ func newDescribeCmd(opts *options) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !isHarnessResource(args[0]) {
-				return writeErr(cmd, fmt.Errorf("unknown resource %q (want harness)", args[0]))
+				return writeErr(cmd, exitcode.Errorf(exitcode.Usage, "unknown resource %q (want harness)", args[0]))
 			}
 			ctxName, fsys, home, err := opts.openTarget()
 			if err != nil {
@@ -38,7 +37,7 @@ func newDescribeCmd(opts *options) *cobra.Command {
 			if err != nil {
 				return writeErr(cmd, err)
 			}
-			if opts.jsonOut {
+			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), snap)
 			}
 			return render.Describe(cmd.OutOrStdout(), ctxName, snap)
