@@ -192,6 +192,9 @@ contexts:
 	if _, err := run(t, "--config", cfgPath, "sync", "--from", "mba", "--to", "box", "--harness", "codex", "--fields", "model"); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := run(t, "--config", cfgPath, "sync", "--from", "mba", "--to", "box", "--harness", "claude,grok", "--dry-run"); err != nil {
+		t.Fatalf("default sync fields must skip unsupported provider on claude/grok: %v", err)
+	}
 	out, err = run(t, "--config", cfgPath, "--context", "box", "describe", "harness", "codex")
 	if err != nil {
 		t.Fatal(err)
@@ -613,6 +616,8 @@ func TestMissingArgsExitUsageWithExample(t *testing.T) {
 		{[]string{"set"}, "hctl set model"},
 		{[]string{"completion"}, "hctl completion bash"},
 		{[]string{"apply"}, "hctl apply -f"},
+		{[]string{"sync"}, "hctl sync --from mba --to box"},
+		{[]string{"config", "use-context"}, "hctl config get-contexts"},
 	}
 	for _, tc := range cases {
 		out, err := run(t, tc.args...)

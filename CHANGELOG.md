@@ -20,6 +20,9 @@ Versioning: [SemVer](https://semver.org/).
 - Claude and Grok refuse `set provider` in `ValidateDesired`, not in a mutate special case.
 
 ### Fixed
+- `hctl sync` without `--from`/`--to` exits 2 and prints a `--dry-run` example.
+- `hctl config use-context` without NAME exits 2 and names `get-contexts`.
+- Default `sync --fields model,provider` skips provider on claude/grok instead of failing the batch.
 - Help text leads with `hctl` (legacy `HARNESSCTL_*` / `~/.harnessctl` names mentioned once for compatibility).
 - `hctl get` without a resource names valid resources and exits with usage code 2.
 - `hctl version` always prints version, commit, and build date (`just build` / `just release` inject via ldflags).
