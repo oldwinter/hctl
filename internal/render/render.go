@@ -25,27 +25,33 @@ func JSON(w io.Writer, v any) error {
 // HarnessesTable prints the inventory table.
 func HarnessesTable(w io.Writer, snaps []model.Snapshot, wide bool) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	header := "NAME\tINSTALLED\tVERSION\tPROVIDER\tMODEL\tHOST\tSECRET"
 	if wide {
-		fmt.Fprintln(tw, "NAME\tINSTALLED\tVERSION\tPROVIDER\tMODEL\tHOST\tSECRET\tCONFIG")
-	} else {
-		fmt.Fprintln(tw, "NAME\tINSTALLED\tVERSION\tPROVIDER\tMODEL\tHOST\tSECRET")
+		header += "\tCONFIG"
+	}
+	if _, err := fmt.Fprintln(tw, header); err != nil {
+		return err
 	}
 	for _, s := range snaps {
+		var err error
 		if wide {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			_, err = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 				s.Name, yesNo(s.Installed), dash(s.Version), dash(s.Provider),
 				dash(s.DefaultModel), dash(s.BaseURLHost), secretCell(s), strings.Join(s.ConfigPaths, ","))
-			continue
+		} else {
+			_, err = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				s.Name,
+				yesNo(s.Installed),
+				dash(s.Version),
+				dash(s.Provider),
+				dash(s.DefaultModel),
+				dash(s.BaseURLHost),
+				secretCell(s),
+			)
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			s.Name,
-			yesNo(s.Installed),
-			dash(s.Version),
-			dash(s.Provider),
-			dash(s.DefaultModel),
-			dash(s.BaseURLHost),
-			secretCell(s),
-		)
+		if err != nil {
+			return err
+		}
 	}
 	return tw.Flush()
 }
@@ -53,10 +59,14 @@ func HarnessesTable(w io.Writer, snaps []model.Snapshot, wide bool) error {
 // ModelsTable prints the per-harness default model summary.
 func ModelsTable(w io.Writer, snaps []model.Snapshot) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "HARNESS\tPROVIDER\tMODEL\tEFFORT\tHOST")
+	if _, err := fmt.Fprintln(tw, "HARNESS\tPROVIDER\tMODEL\tEFFORT\tHOST"); err != nil {
+		return err
+	}
 	for _, s := range snaps {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
-			s.Name, dash(s.Provider), dash(s.DefaultModel), dash(s.Effort), dash(s.BaseURLHost))
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+			s.Name, dash(s.Provider), dash(s.DefaultModel), dash(s.Effort), dash(s.BaseURLHost)); err != nil {
+			return err
+		}
 	}
 	return tw.Flush()
 }
@@ -93,10 +103,14 @@ func Describe(w io.Writer, contextName string, s model.Snapshot) error {
 // DoctorTable prints doctor rows.
 func DoctorTable(w io.Writer, checks []model.DoctorCheck) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tINSTALLED\tCONFIG\tKEY\tONBOARDING\tMESSAGE")
+	if _, err := fmt.Fprintln(tw, "NAME\tINSTALLED\tCONFIG\tKEY\tONBOARDING\tMESSAGE"); err != nil {
+		return err
+	}
 	for _, c := range checks {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			c.Name, c.Installed, c.Config, c.Key, c.Onboarding, c.Message)
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			c.Name, c.Installed, c.Config, c.Key, c.Onboarding, c.Message); err != nil {
+			return err
+		}
 	}
 	return tw.Flush()
 }
@@ -112,14 +126,18 @@ func ContextsTable(w io.Writer, f *config.File) error {
 		return err
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "CURRENT\tNAME\tKIND\tHOME\tSSH")
+	if _, err := fmt.Fprintln(tw, "CURRENT\tNAME\tKIND\tHOME\tSSH"); err != nil {
+		return err
+	}
 	for _, c := range f.Contexts {
 		cur := ""
 		if c.Name == f.CurrentContext {
 			cur = "*"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
-			cur, c.Name, dash(c.Context.Kind), dash(c.Context.Home), dash(c.Context.SSH))
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+			cur, c.Name, dash(c.Context.Kind), dash(c.Context.Home), dash(c.Context.SSH)); err != nil {
+			return err
+		}
 	}
 	return tw.Flush()
 }
@@ -133,11 +151,17 @@ func Diff(w io.Writer, labelA, labelB string, diffs []model.FieldDiff) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "--- %s\n+++ %s\n\n", labelA, labelB)
 	tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "FIELD\tA\tB")
-	for _, d := range diffs {
-		fmt.Fprintf(tw, "%s\t%s\t%s\n", d.Field, empty(d.A), empty(d.B))
+	if _, err := fmt.Fprintln(tw, "FIELD\tA\tB"); err != nil {
+		return err
 	}
-	_ = tw.Flush()
+	for _, d := range diffs {
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\n", d.Field, empty(d.A), empty(d.B)); err != nil {
+			return err
+		}
+	}
+	if err := tw.Flush(); err != nil {
+		return err
+	}
 	_, err := io.WriteString(w, secret.Redact(b.String()))
 	return err
 }
@@ -198,11 +222,17 @@ func ApplyReport(w io.Writer, r model.ApplyReport) error {
 		fmt.Fprintln(&b, "no changes")
 	} else {
 		tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(tw, "HARNESS\tFIELD\tFROM\tTO\tPATH")
-		for _, c := range r.Changes {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", c.Harness, c.Field, empty(c.From), empty(c.To), dash(c.Path))
+		if _, err := fmt.Fprintln(tw, "HARNESS\tFIELD\tFROM\tTO\tPATH"); err != nil {
+			return err
 		}
-		_ = tw.Flush()
+		for _, c := range r.Changes {
+			if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", c.Harness, c.Field, empty(c.From), empty(c.To), dash(c.Path)); err != nil {
+				return err
+			}
+		}
+		if err := tw.Flush(); err != nil {
+			return err
+		}
 	}
 	for _, bak := range r.Backups {
 		fmt.Fprintf(&b, "backup: %s\n", bak)

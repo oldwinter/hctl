@@ -13,6 +13,12 @@ just release
 
 `go test ./...` must stay green. Fixtures live under `testdata/` and use only fake keys (`sk-test-aaa`, `sk-test-bbb`).
 
+`just lint` runs [golangci-lint](https://golangci-lint.run/) **v2.13.2** with `.golangci.yml` (`version: "2"`). Install that version; do not fall back to `go vet`:
+
+```bash
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v2.13.2
+```
+
 ## Layout
 
 - `cmd/hctl`, `cmd/harnessctl` — binaries (`hctl` is primary)

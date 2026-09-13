@@ -36,7 +36,9 @@ func newDoctorCmd(opts *options) *cobra.Command {
 			}
 			for _, c := range checks {
 				if c.Config == "error" {
-					fmt.Fprintf(cmd.ErrOrStderr(), "Next: hctl describe harness %s\n", c.Name)
+					if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "Next: hctl describe harness %s\n", c.Name); err != nil {
+						return err
+					}
 					return exitcode.Errorf(exitcode.Parse, "doctor found parse errors")
 				}
 			}

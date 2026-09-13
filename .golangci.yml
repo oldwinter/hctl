@@ -1,8 +1,11 @@
+# golangci-lint v2.13.2 (https://golangci-lint.run/docs/product/migration-guide/)
+version: "2"
+
 run:
   timeout: 3m
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
     - govet
