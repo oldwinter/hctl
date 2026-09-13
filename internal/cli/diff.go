@@ -134,7 +134,7 @@ func resolveDiffFS(opts *options, cfg *config.File, aName, bName, contexts, home
 		return la, lb, fsx.Local{}, homeA, fsx.Local{}, homeB, nil
 	}
 	if aName == "" || bName == "" {
-		return "", "", nil, "", nil, "", fmt.Errorf("need --a/--b, --contexts NAME,NAME, or --home-a/--home-b")
+		return "", "", nil, "", nil, "", exitcode.Errorf(exitcode.Usage, "diff harness NAME needs --home-a/--home-b, --contexts mba,box, or --a/--b (example: hctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b)")
 	}
 	_, fsA, pathA, err = opts.openNamed(cfg, aName)
 	if err != nil {

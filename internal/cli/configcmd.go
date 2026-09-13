@@ -28,7 +28,14 @@ func newConfigCmd(opts *options) *cobra.Command {
 			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), cfg)
 			}
-			return render.ContextsTable(cmd.OutOrStdout(), cfg)
+			if err := render.ContextsTable(cmd.OutOrStdout(), cfg); err != nil {
+				return err
+			}
+			if configFileMissing(opts.configPath) {
+				_, err := fmt.Fprintln(cmd.OutOrStdout(), "Next: config file not created yet; hctl config set-context box --kind ssh --ssh user@host")
+				return err
+			}
+			return nil
 		},
 	})
 	cmd.AddCommand(&cobra.Command{

@@ -121,6 +121,11 @@ func (o *options) ownershipOptions() ownership.Options {
 	return ownership.Options{Manifest: o.ownershipManifest, AllowManaged: o.allowManaged}
 }
 
+func configFileMissing(path string) bool {
+	_, err := os.Stat(path)
+	return os.IsNotExist(err)
+}
+
 func writeErr(cmd *cobra.Command, err error) error {
 	return err
 }
