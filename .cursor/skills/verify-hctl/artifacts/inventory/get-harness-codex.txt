@@ -1,0 +1,8 @@
+command: /tmp/hctl-verify-proof1/bin/hctl --config /tmp/hctl-verify-proof1/config.yaml --no-probe get harness codex 
+run_id: proof1
+exit: 0
+----- stdout -----
+NAME   INSTALLED  VERSION  PROVIDER  MODEL          HOST            SECRET
+codex  no         -        custom    gpt-5.2-codex  api.openai.com  sha256:b6310a05
+----- stderr -----
+

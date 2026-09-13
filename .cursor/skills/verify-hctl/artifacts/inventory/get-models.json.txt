@@ -1,0 +1,57 @@
+command: /tmp/hctl-verify-proof1/bin/hctl --config /tmp/hctl-verify-proof1/config.yaml --no-probe -o json get models 
+run_id: proof1
+exit: 0
+----- stdout -----
+[
+  {
+    "harness": "codex",
+    "provider": "custom",
+    "model": "gpt-5.2-codex",
+    "effort": "high",
+    "host": "api.openai.com"
+  },
+  {
+    "harness": "claude",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4",
+    "host": "api.anthropic.com"
+  },
+  {
+    "harness": "grok",
+    "provider": "xai",
+    "model": "grok-4.6",
+    "effort": "high",
+    "host": "api.x.ai"
+  },
+  {
+    "harness": "hermes",
+    "provider": "custom",
+    "model": "anthropic/claude-opus-4.6",
+    "host": "openrouter.ai"
+  },
+  {
+    "harness": "opencode",
+    "provider": "acme",
+    "model": "acme/gpt-5",
+    "host": "api.acme.example"
+  },
+  {
+    "harness": "pi",
+    "provider": "sub2api",
+    "model": "gpt-5.6-sol",
+    "host": "api.openai.com"
+  },
+  {
+    "harness": "droid",
+    "provider": "openai",
+    "model": "custom:gpt-5-0",
+    "host": "api.openai.com"
+  },
+  {
+    "harness": "cursor-agent",
+    "provider": "cursor",
+    "model": "gpt-5"
+  }
+]
+----- stderr -----
+

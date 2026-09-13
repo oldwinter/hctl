@@ -1,0 +1,15 @@
+command: /tmp/hctl-verify-proof1/bin/hctl --config /tmp/hctl-verify-proof1/config.yaml --no-probe get models 
+run_id: proof1
+exit: 0
+----- stdout -----
+HARNESS       PROVIDER   MODEL                      EFFORT  HOST
+codex         custom     gpt-5.2-codex              high    api.openai.com
+claude        anthropic  claude-sonnet-4            -       api.anthropic.com
+grok          xai        grok-4.6                   high    api.x.ai
+hermes        custom     anthropic/claude-opus-4.6  -       openrouter.ai
+opencode      acme       acme/gpt-5                 -       api.acme.example
+pi            sub2api    gpt-5.6-sol                -       api.openai.com
+droid         openai     custom:gpt-5-0             -       api.openai.com
+cursor-agent  cursor     gpt-5                      -       -
+----- stderr -----
+

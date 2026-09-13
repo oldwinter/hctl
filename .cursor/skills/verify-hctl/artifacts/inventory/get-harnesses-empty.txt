@@ -1,0 +1,15 @@
+command: /tmp/hctl-verify-proof1/bin/hctl --config /tmp/hctl-verify-proof1/config.yaml --no-probe --context empty get harnesses 
+run_id: proof1
+exit: 0
+----- stdout -----
+NAME          INSTALLED  VERSION  PROVIDER   MODEL  HOST  SECRET
+codex         no         -        -          -      -     -
+claude        no         -        anthropic  -      -     -
+grok          no         -        -          -      -     -
+hermes        no         -        -          -      -     -
+opencode      no         -        -          -      -     -
+pi            no         -        -          -      -     -
+droid         no         -        -          -      -     -
+cursor-agent  no         -        -          -      -     -
+----- stderr -----
+Next: hctl get harnesses -o wide
