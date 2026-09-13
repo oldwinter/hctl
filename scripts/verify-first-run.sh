@@ -36,6 +36,20 @@ set -e
 [[ "$desc_code" -eq 2 ]] || fail "describe missing args exit=$desc_code want 2"
 echo "$desc_err" | grep -q 'hctl describe harness' || fail "describe missing-args error has no example"
 
+set +e
+sync_err="$("$bin" sync 2>&1)"
+sync_code=$?
+set -e
+[[ "$sync_code" -eq 2 ]] || fail "sync missing --from/--to exit=$sync_code want 2"
+echo "$sync_err" | grep -q 'hctl sync --from' || fail "sync missing-flag error has no example"
+
+set +e
+use_err="$("$bin" config use-context 2>&1)"
+use_code=$?
+set -e
+[[ "$use_code" -eq 2 ]] || fail "use-context missing NAME exit=$use_code want 2"
+echo "$use_err" | grep -q 'hctl config get-contexts' || fail "use-context missing-args error has no get-contexts hint"
+
 home="$root/testdata/home-a"
 cfg="$root/testdata/harnessctl.yaml"
 list_out="$("$bin" --home "$home" --config "$cfg" --no-probe list harnesses)"

@@ -121,6 +121,8 @@ func claudeOnboardingComplete(raw map[string]any) bool {
 	return false
 }
 
+func (Adapter) UnsupportedDesiredFields() []string { return []string{"provider"} }
+
 func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
 	if d.Provider != "" {
 		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for claude (provider is implicit anthropic); use set model")

@@ -114,6 +114,8 @@ func firstEnvKey(v any) string {
 	return ""
 }
 
+func (Adapter) UnsupportedDesiredFields() []string { return []string{"provider"} }
+
 func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
 	if d.Provider != "" {
 		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for grok (inferred from base_url); use set model")

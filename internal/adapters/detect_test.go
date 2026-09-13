@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/oldwinter/hctl/internal/adapters/claude"
 	"github.com/oldwinter/hctl/internal/adapters/codex"
 	"github.com/oldwinter/hctl/internal/fsx"
 	"github.com/oldwinter/hctl/internal/testutil"
@@ -97,5 +98,16 @@ func TestDetectBinaryWithoutCommandProbesKeepsPathLookup(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatalf("version subprocess ran: %v", err)
+	}
+}
+
+func TestFilterDesiredFieldsSkipsClaudeProvider(t *testing.T) {
+	got := FilterDesiredFields(claude.Adapter{}, []string{"model", "provider", "secret-ref"})
+	if len(got) != 2 || got[0] != "model" || got[1] != "secret-ref" {
+		t.Fatalf("claude fields = %#v", got)
+	}
+	kept := FilterDesiredFields(codex.Adapter{}, []string{"model", "provider"})
+	if len(kept) != 2 {
+		t.Fatalf("codex fields = %#v", kept)
 	}
 }

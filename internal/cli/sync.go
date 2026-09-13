@@ -35,7 +35,7 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if from == "" || to == "" {
-				return exitcode.Errorf(exitcode.Usage, "sync requires --from and --to")
+				return exitcode.Errorf(exitcode.Usage, "sync requires --from and --to (example: hctl sync --from mba --to box --harness codex --dry-run)")
 			}
 			cfg, err := opts.loadConfig()
 			if err != nil {
@@ -83,11 +83,12 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 					return exitcode.Errorf(exitcode.Parse, "%s source config has a parse error", src.Name)
 				}
 				var project []string
-				for _, name := range []string{"model", "provider", "secret-ref"} {
-					if fieldSet[name] {
-						project = append(project, name)
+				for _, field := range []string{"model", "provider", "secret-ref"} {
+					if fieldSet[field] {
+						project = append(project, field)
 					}
 				}
+				project = adapters.FilterDesiredFields(ad, project)
 				d := model.Project(src, project...)
 				entry := prepared{}
 				if !d.Empty() {

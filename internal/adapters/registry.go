@@ -65,6 +65,30 @@ func Names() []string {
 	return out
 }
 
+type unsupportedDesired interface {
+	UnsupportedDesiredFields() []string
+}
+
+// FilterDesiredFields drops write fields this harness cannot accept (for example
+// provider on claude/grok). Used by sync so a default field list does not fail
+// the whole batch. set/apply still go through ValidateDesired and error.
+func FilterDesiredFields(a Adapter, names []string) []string {
+	skip := map[string]bool{}
+	if u, ok := a.(unsupportedDesired); ok {
+		for _, n := range u.UnsupportedDesiredFields() {
+			skip[n] = true
+		}
+	}
+	var out []string
+	for _, n := range names {
+		if skip[n] {
+			continue
+		}
+		out = append(out, n)
+	}
+	return out
+}
+
 func Scan(fsys fsx.FS, home string) ([]model.Snapshot, error) {
 	home = strings.TrimSpace(home)
 	if home == "" {

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/hctl/internal/config"
+	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/render"
 )
 
@@ -98,7 +99,12 @@ func newConfigCmd(opts *options) *cobra.Command {
 	cmd.AddCommand(&cobra.Command{
 		Use:   "use-context NAME",
 		Short: "Set the current context (writes the resolved hctl config file)",
-		Args:  cobra.ExactArgs(1),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return exitcode.Errorf(exitcode.Usage, "config use-context NAME (example: hctl config get-contexts then hctl config use-context box)")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := opts.loadConfig()
 			if err != nil {
