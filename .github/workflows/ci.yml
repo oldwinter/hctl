@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.13.2
+          args: ./...
+
+      - name: test race + coverage floor
+        run: |
+          go test ./... -race -coverprofile=coverage.out -covermode=atomic
+          ./scripts/check-coverage.sh coverage.out
+
+      - name: build
+        run: |
+          go build -o /tmp/hctl ./cmd/hctl
+          go build -o /tmp/harnessctl ./cmd/harnessctl
