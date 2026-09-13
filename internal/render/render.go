@@ -103,6 +103,14 @@ func DoctorTable(w io.Writer, checks []model.DoctorCheck) error {
 
 // ContextsTable prints kubeconfig-like contexts.
 func ContextsTable(w io.Writer, f *config.File) error {
+	if f == nil || len(f.Contexts) == 0 {
+		_, err := fmt.Fprintln(w, "No contexts configured.")
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(w, "Next: hctl config set-context box --kind ssh --ssh user@host")
+		return err
+	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "CURRENT\tNAME\tKIND\tHOME\tSSH")
 	for _, c := range f.Contexts {

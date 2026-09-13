@@ -23,6 +23,9 @@ Versioning: [SemVer](https://semver.org/).
 - `hctl sync` without `--from`/`--to` exits 2 and prints a `--dry-run` example.
 - `hctl config use-context` without NAME exits 2 and names `get-contexts`.
 - Default `sync --fields model,provider` skips provider on claude/grok instead of failing the batch.
+- `hctl config set-context` without NAME exits 2 and prints an ssh example.
+- `hctl diff` without a resource prints a `--home-a` / `--home-b` example.
+- Empty `hctl config get-contexts` names `set-context` instead of a header-only table.
 - Help text leads with `hctl` (legacy `HARNESSCTL_*` / `~/.harnessctl` names mentioned once for compatibility).
 - `hctl get` without a resource names valid resources and exits with usage code 2.
 - `hctl version` always prints version, commit, and build date (`just build` / `just release` inject via ldflags).

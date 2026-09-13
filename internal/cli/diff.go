@@ -37,7 +37,7 @@ func newDiffCmd(opts *options) *cobra.Command {
 				return runDiffDesired(cmd, opts, filename)
 			}
 			if len(args) != 2 {
-				return exitcode.Errorf(exitcode.Usage, "diff harness NAME (or diff -f FILE)")
+				return exitcode.Errorf(exitcode.Usage, "diff harness NAME (or diff -f FILE) (example: hctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b)")
 			}
 			if !isHarnessResource(args[0]) {
 				return writeErr(cmd, fmt.Errorf("unknown resource %q (want harness)", args[0]))

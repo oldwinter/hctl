@@ -618,6 +618,8 @@ func TestMissingArgsExitUsageWithExample(t *testing.T) {
 		{[]string{"apply"}, "hctl apply -f"},
 		{[]string{"sync"}, "hctl sync --from mba --to box"},
 		{[]string{"config", "use-context"}, "hctl config get-contexts"},
+		{[]string{"config", "set-context"}, "hctl config set-context box --kind ssh"},
+		{[]string{"diff"}, "hctl diff harness codex --home-a"},
 	}
 	for _, tc := range cases {
 		out, err := run(t, tc.args...)
