@@ -53,7 +53,12 @@ func newConfigCmd(opts *options) *cobra.Command {
 	setCtx := &cobra.Command{
 		Use:   "set-context NAME",
 		Short: "Create or update a context (local or ssh)",
-		Args:  cobra.ExactArgs(1),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return exitcode.Errorf(exitcode.Usage, "config set-context NAME (example: hctl config set-context box --kind ssh --ssh user@host)")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kind, _ := cmd.Flags().GetString("kind")
 			home, _ := cmd.Flags().GetString("home")

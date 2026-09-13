@@ -50,6 +50,20 @@ set -e
 [[ "$use_code" -eq 2 ]] || fail "use-context missing NAME exit=$use_code want 2"
 echo "$use_err" | grep -q 'hctl config get-contexts' || fail "use-context missing-args error has no get-contexts hint"
 
+set +e
+setctx_err="$("$bin" config set-context 2>&1)"
+setctx_code=$?
+set -e
+[[ "$setctx_code" -eq 2 ]] || fail "set-context missing NAME exit=$setctx_code want 2"
+echo "$setctx_err" | grep -q 'hctl config set-context box --kind ssh' || fail "set-context missing-args error has no ssh example"
+
+set +e
+diff_err="$("$bin" diff 2>&1)"
+diff_code=$?
+set -e
+[[ "$diff_code" -eq 2 ]] || fail "diff missing args exit=$diff_code want 2"
+echo "$diff_err" | grep -q 'hctl diff harness' || fail "diff missing-args error has no example"
+
 home="$root/testdata/home-a"
 cfg="$root/testdata/harnessctl.yaml"
 list_out="$("$bin" --home "$home" --config "$cfg" --no-probe list harnesses)"

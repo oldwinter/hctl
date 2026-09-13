@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/oldwinter/hctl/internal/config"
 	"github.com/oldwinter/hctl/internal/model"
 	"github.com/oldwinter/hctl/internal/secret"
 )
@@ -37,5 +38,22 @@ func TestJSONRedactsIfSecretSlipsIn(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), "sk-test-aaa") {
 		t.Fatal(buf.String())
+	}
+}
+
+func TestContextsTableEmptyNamesSetContext(t *testing.T) {
+	var buf strings.Builder
+	if err := ContextsTable(&buf, &config.File{}); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "No contexts configured.") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "hctl config set-context box --kind ssh") {
+		t.Fatal(out)
+	}
+	if strings.Contains(out, "CURRENT") {
+		t.Fatal(out)
 	}
 }
