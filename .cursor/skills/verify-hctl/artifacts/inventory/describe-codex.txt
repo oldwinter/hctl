@@ -1,0 +1,16 @@
+command: /tmp/hctl-verify-proof1/bin/hctl --config /tmp/hctl-verify-proof1/config.yaml --no-probe describe harness codex 
+run_id: proof1
+exit: 0
+----- stdout -----
+Name:              codex
+Context:           mba
+Installed:         no
+Config Found:      true
+Config Paths:      /tmp/hctl-verify-proof1/homes/home-a/.codex/config.toml
+Provider:          custom
+Default Model:     gpt-5.2-codex
+Effort:            high
+Base Host:         api.openai.com
+Secret:            sha256:b6310a05
+----- stderr -----
+

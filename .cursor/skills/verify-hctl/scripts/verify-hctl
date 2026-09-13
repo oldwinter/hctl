@@ -317,9 +317,12 @@ cmd_drive() {
 	set -e
 
 	printf '%s' "$stdout"
+	if [[ -n "$stdout" && "$stdout" != *$'\n' ]]; then
+		printf '\n'
+	fi
 	if [[ -n "$stderr" ]]; then
 		printf '%s' "$stderr" >&2
-		if [[ "$stdout" != *$'\n' && -n "$stdout" ]]; then
+		if [[ "$stderr" != *$'\n' ]]; then
 			printf '\n' >&2
 		fi
 	fi
