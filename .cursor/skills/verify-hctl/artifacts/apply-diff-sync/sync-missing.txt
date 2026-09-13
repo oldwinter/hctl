@@ -1,0 +1,7 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe sync 
+run_id: maintain-840a
+exit: 2
+----- stdout -----
+
+----- stderr -----
+sync requires --from and --to (example: hctl sync --from mba --to box --harness codex --dry-run)

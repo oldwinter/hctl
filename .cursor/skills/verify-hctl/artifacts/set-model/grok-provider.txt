@@ -1,0 +1,7 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe set provider grok custom --dry-run 
+run_id: maintain-840a
+exit: 2
+----- stdout -----
+
+----- stderr -----
+set provider is unsupported for grok (inferred from base_url); use set model

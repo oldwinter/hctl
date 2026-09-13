@@ -1,0 +1,15 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe --context theme doctor 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+NAME          INSTALLED  CONFIG   KEY      ONBOARDING  MESSAGE
+codex         missing    missing  missing  needed      no config file
+claude        missing    ok       missing  needed      no default model; theme wizard leftover — onboarding incomplete; incomplete ~/.claude.json (missing theme / onboarding) — first-run onboarding needed
+grok          missing    missing  missing  needed      no config file
+hermes        missing    missing  missing  needed      no config file
+opencode      missing    missing  missing  needed      no config file
+pi            missing    missing  missing  needed      no config file
+droid         missing    missing  missing  needed      no config file
+cursor-agent  missing    missing  missing  needed      no config file
+----- stderr -----
+

@@ -1,0 +1,64 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe -o json doctor 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+[
+  {
+    "name": "codex",
+    "installed": "missing",
+    "config": "ok",
+    "key": "ok",
+    "onboarding": "ok"
+  },
+  {
+    "name": "claude",
+    "installed": "missing",
+    "config": "ok",
+    "key": "ok",
+    "onboarding": "ok"
+  },
+  {
+    "name": "grok",
+    "installed": "missing",
+    "config": "ok",
+    "key": "ok",
+    "onboarding": "ok"
+  },
+  {
+    "name": "hermes",
+    "installed": "missing",
+    "config": "ok",
+    "key": "ok",
+    "onboarding": "ok"
+  },
+  {
+    "name": "opencode",
+    "installed": "missing",
+    "config": "ok",
+    "key": "ok",
+    "onboarding": "ok"
+  },
+  {
+    "name": "pi",
+    "installed": "missing",
+    "config": "ok",
+    "key": "ok",
+    "onboarding": "ok"
+  },
+  {
+    "name": "droid",
+    "installed": "missing",
+    "config": "ok",
+    "key": "ok",
+    "onboarding": "ok"
+  },
+  {
+    "name": "cursor-agent",
+    "installed": "missing",
+    "config": "ok",
+    "key": "missing",
+    "onboarding": "ok"
+  }
+]
+----- stderr -----
+

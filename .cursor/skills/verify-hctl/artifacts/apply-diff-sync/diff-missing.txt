@@ -1,0 +1,7 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe diff 
+run_id: maintain-840a
+exit: 2
+----- stdout -----
+
+----- stderr -----
+diff harness NAME (or diff -f FILE) (example: hctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b)

@@ -1,0 +1,16 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe --context box describe harness codex 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+Name:              codex
+Context:           box
+Installed:         no
+Config Found:      true
+Config Paths:      /tmp/hctl-verify-maintain-840a/homes/home-b/.codex/config.toml
+Provider:          custom
+Default Model:     gpt-5.2-codex
+Effort:            medium
+Base Host:         llm.box.example
+Secret:            sha256:da4ccace
+----- stderr -----
+

@@ -1,0 +1,12 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe config get-contexts 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+CURRENT  NAME   KIND   HOME                                             SSH
+*        mba    local  /tmp/hctl-verify-maintain-840a/homes/home-a      -
+         box    local  /tmp/hctl-verify-maintain-840a/homes/home-b      -
+         theme  local  /tmp/hctl-verify-maintain-840a/homes/home-theme  -
+         drift  local  /tmp/hctl-verify-maintain-840a/homes/home-drift  -
+         empty  local  /tmp/hctl-verify-maintain-840a/homes/home-empty  -
+----- stderr -----
+

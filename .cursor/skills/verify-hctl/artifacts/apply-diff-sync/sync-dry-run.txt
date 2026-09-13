@@ -1,0 +1,9 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe sync --from mba --to box --harness codex --fields model --dry-run 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+dry-run: no files written
+HARNESS  FIELD  FROM     TO             PATH
+codex    model  o4-mini  gpt-5.2-codex  /tmp/hctl-verify-maintain-840a/homes/home-b/.codex/config.toml
+----- stderr -----
+

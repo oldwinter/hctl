@@ -1,0 +1,16 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe describe harness codex 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+Name:              codex
+Context:           mba
+Installed:         no
+Config Found:      true
+Config Paths:      /tmp/hctl-verify-maintain-840a/homes/home-a/.codex/config.toml
+Provider:          custom
+Default Model:     o4-mini
+Effort:            high
+Base Host:         api.openai.com
+Secret:            sha256:b6310a05
+----- stderr -----
+

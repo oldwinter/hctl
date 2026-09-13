@@ -1,0 +1,15 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe doctor 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+NAME          INSTALLED  CONFIG  KEY      ONBOARDING  MESSAGE
+codex         missing    ok      ok       ok          
+claude        missing    ok      ok       ok          
+grok          missing    ok      ok       ok          
+hermes        missing    ok      ok       ok          
+opencode      missing    ok      ok       ok          
+pi            missing    ok      ok       ok          
+droid         missing    ok      ok       ok          
+cursor-agent  missing    ok      missing  ok          
+----- stderr -----
+

@@ -1,0 +1,10 @@
+command: /tmp/hctl-verify-maintain-840a/bin/hctl --config /tmp/hctl-verify-maintain-840a/config.yaml --no-probe -o json config current-context 
+run_id: maintain-840a
+exit: 0
+----- stdout -----
+{
+  "config": "/tmp/hctl-verify-maintain-840a/config.yaml",
+  "currentContext": "mba"
+}
+----- stderr -----
+
