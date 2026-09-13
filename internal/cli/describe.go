@@ -13,8 +13,8 @@ import (
 
 func newDescribeCmd(opts *options) *cobra.Command {
 	return &cobra.Command{
-		Use:   "describe RESOURCE NAME",
-		Short: "Show details of a harness snapshot",
+		Use:     "describe RESOURCE NAME",
+		Short:   "Show details of a harness snapshot",
 		Example: `  hctl describe harness codex`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 2 {
