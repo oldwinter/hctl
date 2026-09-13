@@ -16,6 +16,13 @@ build:
 test:
 	go test ./...
 
+# Statement coverage floor (not 100%). See scripts/check-coverage.sh.
+cover:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	go test ./... -coverprofile=coverage.out -covermode=atomic
+	./scripts/check-coverage.sh coverage.out
+
 race:
 	go test -race ./internal/mutate ./internal/fsx ./internal/cli ./internal/edit
 

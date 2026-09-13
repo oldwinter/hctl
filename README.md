@@ -213,6 +213,7 @@ Factory Droid 当前 `sessionDefaultSettings.model` / `customModels` schema 支�
 
 ```bash
 just test
+just cover
 just race
 just lint
 just smoke
@@ -222,6 +223,8 @@ just release
 `just build` / `just release` 通过 `-ldflags` 写入 `internal/cli.Version` / `Commit` / `Date`（见 `justfile`）。裸 `go build` / `go install` 时 commit 与 date 为 `unknown`。
 
 `just lint` 需要 **golangci-lint v2.13.2**（`.golangci.yml` 的 `version: "2"`）。安装见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+`just cover` 跑全量测试并检查 statement coverage 下限（当前 58.0%，见 `scripts/check-coverage.sh`）。GitHub Actions 对 push/PR 跑 gofmt、golangci-lint、race、同一覆盖率下限，并编译 `hctl` / `harnessctl`。
 
 ## 非目标
 

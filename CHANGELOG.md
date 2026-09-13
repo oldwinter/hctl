@@ -7,6 +7,8 @@ Versioning: [SemVer](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- GitHub Actions CI: gofmt, golangci-lint v2.13.2, race tests, 58.0% statement-coverage floor, and `hctl` / `harnessctl` build.
+- `just cover` runs the same coverage floor locally (`scripts/check-coverage.sh`).
 - `hctl list` is an alias of `hctl get`.
 - Root help names the first commands. `get harnesses`, `doctor`, and `describe harness NAME`.
 - Config identity provenance: `--config` / env / existing `~/.hctl/config.yaml` / existing `~/.harnessctl/config.yaml` / else create `~/.hctl/config.yaml`. Writes stay in place; legacy files are never copied or deleted.
