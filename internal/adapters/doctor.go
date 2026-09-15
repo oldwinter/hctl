@@ -62,6 +62,13 @@ func Doctor(snaps []model.Snapshot) []model.DoctorCheck {
 			c.Message = strings.Join(reasons, "; ")
 			if s.ParseError != "" {
 				c.Message = s.ParseError
+			} else {
+				inspect := fmt.Sprintf("Inspect: hctl describe harness %s", s.Name)
+				if c.Message == "" {
+					c.Message = inspect
+				} else {
+					c.Message = c.Message + "; " + inspect
+				}
 			}
 		} else {
 			c.Onboarding = "ok"

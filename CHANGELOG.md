@@ -7,6 +7,8 @@ Versioning: [SemVer](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Unknown commands print `try: hctl --help` and the testdata `get harnesses` example (#29).
+- `doctor` MESSAGE for `onboarding=needed` without a parse error names `Inspect: hctl describe harness NAME` (#28).
 - GitHub Actions CI: gofmt, golangci-lint v2.13.2, race tests, 58.0% statement-coverage floor, and `hctl` / `harnessctl` build.
 - `just cover` runs the same coverage floor locally (`scripts/check-coverage.sh`).
 - `hctl list` is an alias of `hctl get`.
