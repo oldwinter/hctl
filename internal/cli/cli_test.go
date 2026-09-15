@@ -20,7 +20,7 @@ func run(t *testing.T, args ...string) (string, error) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := Run(cmd)
 	return out.String(), err
 }
 
@@ -757,6 +757,41 @@ func TestSetContextHintsUseContext(t *testing.T) {
 	}
 	if !strings.Contains(out, "hctl config use-context cloud") {
 		t.Fatalf("set-context should name use-context:\n%s", out)
+	}
+}
+
+func TestUnknownCommandHintsHelp(t *testing.T) {
+	_, err := run(t, "nosuch")
+	if err == nil {
+		t.Fatal("expected unknown command")
+	}
+	if exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("exit = %d want %d (%v)", exitcode.From(err), exitcode.Usage, err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, `unknown command "nosuch"`) {
+		t.Fatalf("keep cobra error: %v", err)
+	}
+	if !strings.Contains(msg, "try: hctl --help") {
+		t.Fatalf("unknown command should name --help: %v", err)
+	}
+	if !strings.Contains(msg, "hctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses") {
+		t.Fatalf("unknown command should name testdata get: %v", err)
+	}
+}
+
+func TestDoctorOnboardingNamesDescribe(t *testing.T) {
+	home := testutil.Testdata(t, "home-empty")
+	cfg := testutil.Testdata(t, "harnessctl.yaml")
+	out, err := run(t, "--home", home, "--config", cfg, "--no-probe", "doctor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "Inspect: hctl describe harness codex") {
+		t.Fatalf("missing-config doctor should name describe:\n%s", out)
+	}
+	if !strings.Contains(out, "no config file") {
+		t.Fatalf("keep no-config reason:\n%s", out)
 	}
 }
 
