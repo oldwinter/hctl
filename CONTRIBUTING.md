@@ -8,6 +8,7 @@ just cover
 just race
 just lint
 just smoke
+just verify
 just fmt
 just release
 ```
