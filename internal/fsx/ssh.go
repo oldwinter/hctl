@@ -3,6 +3,7 @@ package fsx
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -160,29 +161,14 @@ func shq(s string) string {
 }
 
 func isExit(err error, code int) bool {
-	var ee *exec.ExitError
-	if !asExit(err, &ee) {
-		// exitcode.Error unwraps
-		if u, ok := err.(interface{ Unwrap() error }); ok {
-			return isExit(u.Unwrap(), code)
-		}
-		return strings.Contains(err.Error(), "exit status "+strconv.Itoa(code))
-	}
-	return ee.ExitCode() == code
-}
-
-func asExit(err error, target **exec.ExitError) bool {
 	if err == nil {
 		return false
 	}
-	if e, ok := err.(*exec.ExitError); ok {
-		*target = e
-		return true
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		return ee.ExitCode() == code
 	}
-	if u, ok := err.(interface{ Unwrap() error }); ok {
-		return asExit(u.Unwrap(), target)
-	}
-	return false
+	return strings.Contains(err.Error(), "exit status "+strconv.Itoa(code))
 }
 
 type sshInfo struct {

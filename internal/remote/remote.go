@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/fsx"
 )
+
+var userHomeDir = os.UserHomeDir
 
 // Target is one opened context: a filesystem rooted at Home.
 type Target struct {
@@ -35,9 +38,13 @@ func DefaultDial(nc config.NamedContext, homeFlag string) (Target, error) {
 	}
 	if ctx.Kind != config.KindSSH {
 		if ctx.Home != "" {
-			return Target{Name: nc.Name, FS: fsx.Local{}, Home: expand(ctx.Home)}, nil
+			home, err := expand(ctx.Home)
+			if err != nil {
+				return Target{}, err
+			}
+			return Target{Name: nc.Name, FS: fsx.Local{}, Home: home}, nil
 		}
-		home, err := os.UserHomeDir()
+		home, err := userHomeDir()
 		if err != nil {
 			return Target{}, err
 		}
@@ -62,11 +69,13 @@ func DefaultDial(nc config.NamedContext, homeFlag string) (Target, error) {
 	return Target{Name: nc.Name, FS: s, Home: home}, nil
 }
 
-func expand(p string) string {
-	if strings.HasPrefix(p, "~/") {
-		if home, err := os.UserHomeDir(); err == nil {
-			return strings.Replace(p, "~", home, 1)
-		}
+func expand(p string) (string, error) {
+	if !strings.HasPrefix(p, "~/") {
+		return p, nil
 	}
-	return p
+	home, err := userHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot expand %q: %w", p, err)
+	}
+	return strings.Replace(p, "~", home, 1), nil
 }

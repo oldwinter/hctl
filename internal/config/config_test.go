@@ -55,6 +55,40 @@ func TestUnknownContext(t *testing.T) {
 	}
 }
 
+func TestCurrentRequiresName(t *testing.T) {
+	f := Default()
+	got, err := f.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "mba" {
+		t.Fatalf("name=%q", got.Name)
+	}
+	f.CurrentContext = ""
+	if _, err := f.Current(); err == nil {
+		t.Fatal("empty current-context")
+	}
+	f.CurrentContext = "nope"
+	if _, err := f.Current(); err == nil {
+		t.Fatal("missing current-context")
+	}
+}
+
+func TestContextTarget(t *testing.T) {
+	if got := (Context{SSH: "u@h"}).Target(); got != "u@h" {
+		t.Fatalf("ssh field=%q", got)
+	}
+	if got := (Context{User: "u", Host: "h"}).Target(); got != "u@h" {
+		t.Fatalf("user@host=%q", got)
+	}
+	if got := (Context{Host: "h"}).Target(); got != "h" {
+		t.Fatalf("host=%q", got)
+	}
+	if got := (Context{}).Target(); got != "" {
+		t.Fatalf("empty=%q", got)
+	}
+}
+
 func TestGetenvPrefersHCTL(t *testing.T) {
 	t.Setenv("HCTL_CONFIG", "/tmp/hctl.yaml")
 	t.Setenv("HARNESSCTL_CONFIG", "/tmp/legacy.yaml")

@@ -37,3 +37,6 @@ jobs:
         run: |
           go build -o /tmp/hctl ./cmd/hctl
           go build -o /tmp/harnessctl ./cmd/harnessctl
+
+      - name: first-run usage contract
+        run: HCTL_BIN=/tmp/hctl ./scripts/verify-first-run.sh

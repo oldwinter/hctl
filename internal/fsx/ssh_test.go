@@ -2,10 +2,14 @@ package fsx
 
 import (
 	"bytes"
+	"errors"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/oldwinter/hctl/internal/exitcode"
 )
 
 func TestSSHViaFakeRunner(t *testing.T) {
@@ -72,6 +76,33 @@ func TestDefaultRunnerTimeout(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "timed out") {
 		t.Fatalf("%v", err)
+	}
+}
+
+func TestSSHReadFileMissingMapsNotExist(t *testing.T) {
+	s := SSH{
+		Target: "user@box",
+		Run: func(stdin []byte, name string, args ...string) ([]byte, error) {
+			cmd := exec.Command("sh", "-c", "exit 3")
+			return nil, cmd.Run()
+		},
+	}
+	_, err := s.ReadFile("/nope")
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestSSHRemoteHomeEmpty(t *testing.T) {
+	s := SSH{
+		Target: "user@box",
+		Run: func(stdin []byte, name string, args ...string) ([]byte, error) {
+			return []byte("  \n"), nil
+		},
+	}
+	_, err := s.RemoteHome()
+	if exitcode.From(err) != exitcode.SSH {
+		t.Fatalf("err=%v code=%d", err, exitcode.From(err))
 	}
 }
 

@@ -84,6 +84,19 @@ func TestReadOneInstalledUsesRemoteLookPath(t *testing.T) {
 	}
 }
 
+func TestDetectBinaryUsesLocalPATH(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "hctl-detect-fixture")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	path, _, ok := DetectBinary([]string{"missing-hctl-detect", "hctl-detect-fixture"})
+	if !ok || path != bin {
+		t.Fatalf("path=%q ok=%v", path, ok)
+	}
+}
+
 func TestDetectBinaryWithoutCommandProbesKeepsPathLookup(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "called")

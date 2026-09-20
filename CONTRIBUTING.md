@@ -15,7 +15,7 @@ just release
 
 `go test ./...` must stay green. Fixtures live under `testdata/` and use only fake keys (`sk-test-aaa`, `sk-test-bbb`).
 
-`just cover` fails if total statement coverage drops below the floor in `scripts/check-coverage.sh` (currently 58.0%). Raise that number when coverage meaningfully increases; do not chase 100%. GitHub Actions (`.github/workflows/ci.yml`) runs gofmt, golangci-lint v2.13.2, `go test -race ./...`, the same coverage floor, and builds `hctl` + `harnessctl`.
+`just cover` fails if total statement coverage drops below the floor in `scripts/check-coverage.sh` (currently 58.0%). Raise that number when coverage meaningfully increases; do not chase 100%. GitHub Actions (`.github/workflows/ci.yml`) runs gofmt, golangci-lint v2.13.2, `go test -race ./...`, the same coverage floor, builds `hctl` + `harnessctl`, and `scripts/verify-first-run.sh`.
 
 `just lint` runs [golangci-lint](https://golangci-lint.run/) **v2.13.2** with `.golangci.yml` (`version: "2"`). Install that version; do not fall back to `go vet`:
 
