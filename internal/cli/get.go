@@ -43,11 +43,11 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, fsys, home, err := opts.openTarget()
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			snaps, err := adapters.Scan(fsys, home)
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			name := ""
 			if len(args) == 2 {
@@ -55,7 +55,7 @@ Examples:
 			}
 			snaps, err = pickSnapshots(snaps, name)
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			res := strings.ToLower(args[0])
 			switch res {
@@ -102,7 +102,7 @@ Examples:
 					return err
 				}
 			default:
-				return writeErr(cmd, exitcode.Errorf(exitcode.Usage, "unknown resource %q (want %s). Next: hctl get harnesses", args[0], getResources))
+				return exitcode.Errorf(exitcode.Usage, "unknown resource %q (want %s). Next: hctl get harnesses", args[0], getResources)
 			}
 			return nil
 		},

@@ -40,27 +40,27 @@ func newDiffCmd(opts *options) *cobra.Command {
 				return exitcode.Errorf(exitcode.Usage, "diff harness NAME (or diff -f FILE) (example: hctl diff harness codex --home-a testdata/home-a --home-b testdata/home-b)")
 			}
 			if !isHarnessResource(args[0]) {
-				return writeErr(cmd, exitcode.Errorf(exitcode.Usage, "unknown resource %q (want harness)", args[0]))
+				return exitcode.Errorf(exitcode.Usage, "unknown resource %q (want harness)", args[0])
 			}
 			ad, err := adapters.ByName(args[1])
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			cfg, err := opts.loadConfig()
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			labelA, labelB, fsA, homeA2, fsB, homeB2, err := resolveDiffFS(opts, cfg, aName, bName, contexts, homeA, homeB)
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			sa, err := adapters.ReadOne(ad, fsA, homeA2)
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			sb, err := adapters.ReadOne(ad, fsB, homeB2)
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			diffs := model.DiffSnapshots(sa, sb)
 			if opts.wantJSON() {

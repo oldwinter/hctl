@@ -24,19 +24,19 @@ func newDescribeCmd(opts *options) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !isHarnessResource(args[0]) {
-				return writeErr(cmd, exitcode.Errorf(exitcode.Usage, "unknown resource %q (want harness)", args[0]))
+				return exitcode.Errorf(exitcode.Usage, "unknown resource %q (want harness)", args[0])
 			}
 			ctxName, fsys, home, err := opts.openTarget()
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			a, err := adapters.ByName(args[1])
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			snap, err := adapters.ReadOne(a, fsys, home)
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			appendProviderWriteNote(&snap, a)
 			if opts.wantJSON() {

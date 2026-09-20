@@ -114,7 +114,7 @@ SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`，整段命令 10s �
 | --- | --- | --- |
 | `version` | 版本 / commit / date | 0 |
 | `config get-contexts` / `current-context` / `use-context` / `set-context` | 环境 | 0 / 1 |
-| `get harnesses` / `get models` / `get harness NAME` | 库存表；`--json` 与 `-o json` 等价；`-o wide` 加配置路径 | 0 |
+| `get harnesses` / `get models` / `get harness NAME` | 库存表；`list` 为 `get` 别名；`--json` 与 `-o json` 等价；`-o wide` 加配置路径 | 0 |
 | `describe harness NAME` | 单条快照 | 0 |
 | `doctor` | 安装 / 配置 / 密钥 / onboarding / **key-drift**（人表有 DRIFT 列） | 0；解析错误为 5 |
 | `diff harness NAME --contexts mba,box` | 两边快照 | 0 / 4(ssh) |
@@ -123,7 +123,7 @@ SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`，整段命令 10s �
 | `set model\|provider NAME VALUE [--dry-run]` | 单字段写入 | 0 / 3(verify) / 2 |
 | `apply -f FILE [--dry-run]` | 声明式写入 | 0 / 3 |
 | `sync --from mba --to box --harness a,b [--fields …] [--dry-run]` | 跨 context | 0 / 4 |
-| `completion bash\|zsh\|fish` | 补全 | 0 |
+| `completion bash\|zsh\|fish\|powershell` | 补全 | 0 |
 
 退出码：`0` 成功，`1` 通用，`2` 用法，`3` 写后校验失败，`4` SSH，`5` 解析错误。
 
@@ -219,6 +219,7 @@ just cover
 just race
 just lint
 just smoke
+just verify
 just release
 ```
 

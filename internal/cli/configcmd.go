@@ -23,7 +23,7 @@ func newConfigCmd(opts *options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := opts.loadConfig()
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), cfg)
@@ -45,7 +45,7 @@ func newConfigCmd(opts *options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := opts.loadConfig()
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			if opts.wantJSON() {
 				return render.JSON(cmd.OutOrStdout(), map[string]string{
@@ -132,17 +132,17 @@ func newConfigCmd(opts *options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := opts.loadConfig()
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			if err := cfg.UseContext(args[0]); err != nil {
 				hint := fmt.Sprintf("add it under contexts: in %s (see README for a box/ssh example)", opts.configPath)
 				if _, statErr := os.Stat(opts.configPath); os.IsNotExist(statErr) {
 					hint = fmt.Sprintf("Next: hctl config set-context %s --kind local", args[0])
 				}
-				return writeErr(cmd, fmt.Errorf("%w; %s", err, hint))
+				return fmt.Errorf("%w; %s", err, hint)
 			}
 			if err := config.Save(opts.configPath, cfg); err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Switched to context %q.\n", args[0])
 			return err
