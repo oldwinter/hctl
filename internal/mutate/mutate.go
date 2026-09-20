@@ -163,7 +163,6 @@ type SecretRequest struct {
 	SrcHome   string
 	DstFS     fsx.FS
 	DstHome   string
-	PreferRef bool
 	Provider  string
 	DryRun    bool
 	BackupDir string
@@ -221,8 +220,6 @@ func PreflightSecret(req SecretRequest) (SecretPlan, error) {
 	plan.out.Ref = ref
 	plan.destinationPaths = dst.ConfigPaths
 	switch {
-	case req.PreferRef && ref != "":
-		plan.out.Action = "secret-ref"
 	case value != "":
 		plan.out.Action = "bearer"
 	case ref != "":
@@ -259,9 +256,6 @@ func ApplyPreparedSecret(plan SecretPlan) (model.SecretCopy, error) {
 		}
 	}
 	ref, value := plan.ref, plan.value
-	if plan.req.PreferRef && ref != "" {
-		value = ""
-	}
 	if err := plan.io.WriteSecret(plan.req.DstFS, plan.req.DstHome, ref, value); err != nil {
 		return out, err
 	}
@@ -278,15 +272,4 @@ func ApplyPreparedSecret(plan SecretPlan) (model.SecretCopy, error) {
 	out.To = after.SecretFingerprint
 	out.Copied = true
 	return out, nil
-}
-
-// CopySecret transfers a secret or env-ref from src to dst. Values are never returned.
-func CopySecret(ad adapters.Adapter, srcFS fsx.FS, srcHome string, dstFS fsx.FS, dstHome string, preferRef bool) (model.SecretCopy, error) {
-	plan, err := PreflightSecret(SecretRequest{
-		Adapter: ad, SrcFS: srcFS, SrcHome: srcHome, DstFS: dstFS, DstHome: dstHome, PreferRef: preferRef,
-	})
-	if err != nil {
-		return plan.out, err
-	}
-	return ApplyPreparedSecret(plan)
 }

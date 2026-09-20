@@ -163,11 +163,9 @@ func isExit(err error, code int) bool {
 	var ee *exec.ExitError
 	if !asExit(err, &ee) {
 		// exitcode.Error unwraps
-		var unwrap interface{ Unwrap() error }
 		if u, ok := err.(interface{ Unwrap() error }); ok {
 			return isExit(u.Unwrap(), code)
 		}
-		_ = unwrap
 		return strings.Contains(err.Error(), "exit status "+strconv.Itoa(code))
 	}
 	return ee.ExitCode() == code

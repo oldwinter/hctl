@@ -20,11 +20,11 @@ func newDoctorCmd(opts *options) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, fsys, home, err := opts.openTarget()
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			snaps, err := adapters.Scan(fsys, home)
 			if err != nil {
-				return writeErr(cmd, err)
+				return err
 			}
 			checks := adapters.Doctor(snaps)
 			if opts.wantJSON() {
