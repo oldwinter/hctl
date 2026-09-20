@@ -50,6 +50,10 @@ release:
 	echo "checksums:"
 	cat dist/SHA256SUMS
 
+# First-run help/usage contract against a real binary.
+verify:
+	./scripts/verify-first-run.sh
+
 smoke: build
 	{{binary}} version
 	{{alias_bin}} version
