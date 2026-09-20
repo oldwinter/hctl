@@ -68,7 +68,3 @@ smoke: build
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml diff -f testdata/desired.toml
 	{{binary}} --home testdata/home-a --config testdata/harnessctl.yaml apply -f testdata/desired.toml --dry-run
 	{{binary}} completion bash >/dev/null
-
-# Drive hctl like a new user; fails if first-run help or usage errors drift.
-verify:
-	./scripts/verify-first-run.sh

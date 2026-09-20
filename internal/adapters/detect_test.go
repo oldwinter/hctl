@@ -91,7 +91,7 @@ func TestDetectBinaryUsesLocalPATH(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)
-	path, _, ok := DetectBinary([]string{"missing-hctl-detect", "hctl-detect-fixture"})
+	path, _, ok := DetectBinaryFS(fsx.Local{}, []string{"missing-hctl-detect", "hctl-detect-fixture"})
 	if !ok || path != bin {
 		t.Fatalf("path=%q ok=%v", path, ok)
 	}
