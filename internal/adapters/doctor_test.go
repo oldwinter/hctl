@@ -34,3 +34,31 @@ func TestDoctorGroupsKeyDriftByHost(t *testing.T) {
 		}
 	}
 }
+
+func TestDoctorOnboardingInspectWithoutParseError(t *testing.T) {
+	checks := Doctor([]model.Snapshot{
+		{Name: "codex"},
+		{Name: "claude", ConfigFound: true, ParseError: "broken settings"},
+	})
+	byName := map[string]model.DoctorCheck{}
+	for _, c := range checks {
+		byName[c.Name] = c
+	}
+	codex := byName["codex"]
+	if codex.Onboarding != "needed" {
+		t.Fatalf("codex onboarding: %#v", codex)
+	}
+	if !strings.Contains(codex.Message, "no config file") {
+		t.Fatalf("codex reasons: %q", codex.Message)
+	}
+	if !strings.Contains(codex.Message, "Inspect: hctl describe harness codex") {
+		t.Fatalf("codex inspect: %q", codex.Message)
+	}
+	claude := byName["claude"]
+	if claude.Message != "broken settings" {
+		t.Fatalf("parse error should stay the message: %#v", claude)
+	}
+	if strings.Contains(claude.Message, "Inspect:") {
+		t.Fatalf("parse error should not add inspect: %q", claude.Message)
+	}
+}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -128,4 +129,28 @@ func configFileMissing(path string) bool {
 
 func writeErr(cmd *cobra.Command, err error) error {
 	return err
+}
+
+// Execute runs the CLI and annotates cobra unknown-command errors with a next step.
+func Execute() error {
+	return Run(NewRoot())
+}
+
+// Run executes cmd and rewrites unknown-command errors (SilenceErrors hides cobra's hint).
+func Run(cmd *cobra.Command) error {
+	return annotateUnknownCommand(cmd.Execute())
+}
+
+func annotateUnknownCommand(err error) error {
+	if err == nil {
+		return nil
+	}
+	var coded *exitcode.Error
+	if errors.As(err, &coded) {
+		return err
+	}
+	if !strings.Contains(err.Error(), `unknown command "`) {
+		return err
+	}
+	return exitcode.Errorf(exitcode.Usage, "%s\ntry: hctl --help\nhctl --home testdata/home-a --config testdata/harnessctl.yaml get harnesses", err)
 }
