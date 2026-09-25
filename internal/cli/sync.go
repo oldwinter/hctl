@@ -23,13 +23,16 @@ func newSyncCmd(opts *options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Copy selected harness fields from one context to another",
-		Long: `Sync model/provider/secret-ref (and optionally bearer tokens) across contexts.
+		Long: `Sync model/provider/base-url/secret-ref (and optionally bearer tokens) across contexts.
 
   hctl sync --from mba --to box --harness codex,claude --dry-run
   hctl sync --from mba --to box --harness codex --fields model,provider,secret-ref
+  hctl sync --from mba --to box --harness hermes --fields provider,base-url
 
-Bearer copy (--fields …,secret) transfers key bytes over the filesystem/SSH
-without logging them. Only fingerprints are shown. Prefer secret-ref.
+base-url copies the source provider's full endpoint URL (write path only;
+inventory surfaces still show just the host). Bearer copy (--fields …,secret)
+transfers key bytes over the filesystem/SSH without logging them. Only
+fingerprints are shown. Prefer secret-ref.
 
 Risk: copying a bearer token duplicates a credential. Rotate if a host is untrusted.`,
 		Args: cobra.NoArgs,
@@ -92,6 +95,30 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 				}
 				project = adapters.FilterDesiredFields(ad, project)
 				d := model.Project(src, project...)
+				if fieldSet["base-url"] {
+					reader, ok := ad.(adapters.EndpointReader)
+					if !ok {
+						err := exitcode.Errorf(exitcode.Usage, "harness %s does not expose a writable endpoint", ad.Name())
+						if batch {
+							skips = append(skips, fmt.Sprintf("skipped %s: %s", ad.Name(), err.Error()))
+							continue
+						}
+						return err
+					}
+					endpoint, err := reader.ReadEndpoint(srcFS, srcHome)
+					if err != nil {
+						return err
+					}
+					if endpoint == "" {
+						err := exitcode.Errorf(exitcode.Usage, "%s source has no provider endpoint to copy", src.Name)
+						if batch {
+							skips = append(skips, fmt.Sprintf("skipped %s: %s", ad.Name(), err.Error()))
+							continue
+						}
+						return err
+					}
+					d.BaseURL = endpoint
+				}
 				entry := prepared{}
 				if !d.Empty() {
 					entry.field, err = mutate.Preflight(mutate.Request{
@@ -169,7 +196,7 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 	cmd.Flags().StringVar(&from, "from", "", "source context")
 	cmd.Flags().StringVar(&to, "to", "", "destination context")
 	cmd.Flags().StringVar(&harness, "harness", "", "comma-separated harness names (default: all writable)")
-	cmd.Flags().StringVar(&fields, "fields", "model,provider", "model,provider,secret-ref,secret")
+	cmd.Flags().StringVar(&fields, "fields", "model,provider", "model,provider,base-url,secret-ref,secret")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show changes without writing")
 	return cmd
 }

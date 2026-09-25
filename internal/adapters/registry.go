@@ -27,6 +27,13 @@ type Adapter interface {
 	Read(fsys fsx.FS, home string) (model.Snapshot, error)
 }
 
+// EndpointReader exposes the provider's full endpoint URL for write paths.
+// Snapshots deliberately keep only the host; the complete URL never enters
+// inventory surfaces, only Desired write intents.
+type EndpointReader interface {
+	ReadEndpoint(fsys fsx.FS, home string) (string, error)
+}
+
 // All returns adapters in display order.
 func All() []Adapter {
 	return []Adapter{

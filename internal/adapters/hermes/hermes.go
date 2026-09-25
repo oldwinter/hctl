@@ -202,7 +202,44 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+// ReadEndpoint returns the full endpoint URL of the active provider —
+// base_url first, then api — for write-path use (sync base-url). Inventory
+// keeps exposing only the host via Snapshot.BaseURLHost.
+func (a Adapter) ReadEndpoint(fsys fsx.FS, home string) (string, error) {
+	cfg, providerID, activeEndpoint, err := readActiveConfig(fsys, home, "")
+	if err != nil {
+		return "", err
+	}
+	var obj modelObj
+	raw, _ := yaml.Marshal(cfg.Model)
+	_ = yaml.Unmarshal(raw, &obj)
+	if p, ambiguous := activeCustomProvider(cfg, providerID, activeEndpoint); !ambiguous && p != nil && p.BaseURL != "" {
+		return p.BaseURL, nil
+	}
+	if activeEndpoint != "" {
+		return activeEndpoint, nil
+	}
+	return obj.BaseURL, nil
+}
+
 func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
+	if d.BaseURL != "" {
+		cfg, providerID, _, err := readActiveConfig(fsys, home, d.Provider)
+		if err != nil {
+			return err
+		}
+		if providerID == "" {
+			return exitcode.Errorf(exitcode.Usage, "baseUrl needs a provider (set provider, or configure model.provider first)")
+		}
+		if _, ok := cfg.Providers[providerID]; !ok {
+			names := make([]string, 0, len(cfg.Providers))
+			for name := range cfg.Providers {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			return exitcode.Errorf(exitcode.Usage, "hermes provider %q is not in providers; have %s", providerID, strings.Join(names, ", "))
+		}
+	}
 	if d.Provider != "" {
 		cfg, _, _, err := readActiveConfig(fsys, home, d.Provider)
 		if err != nil {
@@ -275,6 +312,21 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 	}
 	if d.Provider != "" {
 		data, err = edit.SetYAML(data, []string{"model", "provider"}, d.Provider)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if d.BaseURL != "" {
+		prov := d.Provider
+		if prov == "" {
+			snap, _ := a.Read(fsys, home)
+			prov = snap.Provider
+		}
+		if prov == "" || prov == "auto" {
+			prov = "custom"
+		}
+		prov = strings.TrimPrefix(prov, "custom:")
+		data, err = edit.SetYAML(data, []string{"providers", prov, "base_url"}, d.BaseURL)
 		if err != nil {
 			return nil, err
 		}

@@ -165,3 +165,87 @@ func TestValidateDesiredRejectsUnknownProvider(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 }
+
+func writeConfig(t *testing.T, home, data string) string {
+	t.Helper()
+	path := filepath.Join(home, ".hermes", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestReadEndpointReturnsFullProviderURL(t *testing.T) {
+	home := t.TempDir()
+	writeConfig(t, home, `model:
+  default: gpt-5.6-sol
+  provider: custom:gateway
+providers:
+  gateway:
+    base_url: https://gateway.example/team/v1
+`)
+	endpoint, err := (Adapter{}).ReadEndpoint(fsx.Local{}, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if endpoint != "https://gateway.example/team/v1" {
+		t.Fatalf("endpoint = %q", endpoint)
+	}
+	snap, err := (Adapter{}).Read(fsx.Local{}, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.BaseURLHost != "gateway.example" {
+		t.Fatalf("snapshot should still expose only the host: %+v", snap)
+	}
+}
+
+func TestWriteFieldsBaseURLRetargetsExistingProvider(t *testing.T) {
+	home := t.TempDir()
+	path := writeConfig(t, home, `model:
+  default: gpt-5.6-sol
+  provider: custom:gateway
+providers:
+  gateway:
+    base_url: https://old.example/v1
+`)
+	if _, err := (Adapter{}).WriteFields(fsx.Local{}, home, model.Desired{BaseURL: "https://new.example/team/v2"}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "base_url: https://new.example/team/v2") {
+		t.Fatalf("config: %s", data)
+	}
+	snap, err := (Adapter{}).Read(fsx.Local{}, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.BaseURLHost != "new.example" {
+		t.Fatalf("host after write = %q", snap.BaseURLHost)
+	}
+}
+
+func TestValidateDesiredRejectsBaseURLForMissingProvider(t *testing.T) {
+	home := t.TempDir()
+	writeConfig(t, home, `model:
+  default: gpt-5.6-sol
+  provider: custom:gateway
+providers:
+  gateway:
+    base_url: https://gateway.example/v1
+`)
+	err := (Adapter{}).ValidateDesired(fsx.Local{}, home, model.Desired{Provider: "other", BaseURL: "https://new.example"})
+	if err == nil || !strings.Contains(err.Error(), "providers") {
+		t.Fatalf("err=%v", err)
+	}
+	err = (Adapter{}).ValidateDesired(fsx.Local{}, t.TempDir(), model.Desired{BaseURL: "https://new.example"})
+	if err == nil || !strings.Contains(err.Error(), "provider") {
+		t.Fatalf("err=%v", err)
+	}
+}
