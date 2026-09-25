@@ -35,4 +35,24 @@ func TestProjectAndKnownSyncField(t *testing.T) {
 	if !KnownSyncField("secret") || !KnownSyncField("secretRef") || KnownSyncField("effort") {
 		t.Fatal("sync field vocabulary")
 	}
+	if !KnownSyncField("base-url") || !KnownSyncField("baseUrl") {
+		t.Fatal("base-url should be a sync field")
+	}
+}
+
+func TestBaseURLChangesCompareAtHostLevel(t *testing.T) {
+	snap := Snapshot{Name: "hermes", BaseURLHost: "gateway.example"}
+	if ch := ChangesFromDesired("hermes", snap, Desired{BaseURL: "https://gateway.example/team/v1"}); len(ch) != 0 {
+		t.Fatalf("same-host endpoint should produce no change: %#v", ch)
+	}
+	ch := ChangesFromDesired("hermes", snap, Desired{BaseURL: "https://other.example/v1"})
+	if len(ch) != 1 || ch[0].Field != "baseUrl" || ch[0].From != "gateway.example" || ch[0].To != "https://other.example/v1" {
+		t.Fatalf("baseUrl change = %#v", ch)
+	}
+	if (Desired{BaseURL: "https://x"}).Empty() {
+		t.Fatal("baseUrl should count as non-empty")
+	}
+	if got := Project(snap, "base-url"); got.BaseURL != "" {
+		t.Fatalf("projection must not copy the host into baseUrl: %#v", got)
+	}
 }

@@ -66,6 +66,7 @@ func dash(v string) string {
 type Desired struct {
 	Model     string `json:"model,omitempty" toml:"model,omitempty" yaml:"model,omitempty"`
 	Provider  string `json:"provider,omitempty" toml:"provider,omitempty" yaml:"provider,omitempty"`
+	BaseURL   string `json:"baseUrl,omitempty" toml:"baseUrl,omitempty" yaml:"baseUrl,omitempty"`
 	SecretRef string `json:"secretRef,omitempty" toml:"secretRef,omitempty" yaml:"secretRef,omitempty"`
 }
 
