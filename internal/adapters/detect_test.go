@@ -1,10 +1,7 @@
 package adapters
 
 import (
-	"bytes"
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,27 +13,18 @@ import (
 )
 
 func TestDetectBinaryFSUsesRemoteCommandV(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "codex")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\necho 'codex 9.9 fixture'\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	fsys := fsx.SSH{
 		Target: "user@box",
-		Run: func(stdin []byte, name string, args ...string) ([]byte, error) {
-			if name != "ssh" {
-				t.Fatalf("name=%s", name)
-			}
-			script := args[len(args)-1]
-			if strings.Contains(script, "command -v") && strings.Contains(script, "codex") {
-				return []byte("/usr/bin/codex\n"), nil
-			}
-			if strings.Contains(script, "command -v") {
-				return nil, fmt.Errorf("exit status 1")
-			}
-			if strings.Contains(script, "--version") {
-				t.Fatal("remote version probe must not run")
-			}
-			return nil, fmt.Errorf("unexpected remote cmd: %s", script)
-		},
+		Run:    testutil.SSHShellRunner(t),
 	}
-	path, ver, ok := DetectBinaryFS(fsys, []string{"missing", "codex"})
-	if !ok || path != "/usr/bin/codex" {
+	path, ver, ok := DetectBinaryFS(fsys, []string{"fixture-missing", "codex"})
+	if !ok || path != bin {
 		t.Fatalf("path=%q ok=%v", path, ok)
 	}
 	if ver != "" {
@@ -46,24 +34,21 @@ func TestDetectBinaryFSUsesRemoteCommandV(t *testing.T) {
 
 func TestReadOneInstalledUsesRemoteLookPath(t *testing.T) {
 	home := testutil.Testdata(t, "home-a")
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "codex")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	called := false
+	shell := testutil.SSHShellRunner(t)
 	fsys := fsx.SSH{
 		Target: "user@box",
 		Run: func(stdin []byte, name string, args ...string) ([]byte, error) {
-			script := args[len(args)-1]
-			if strings.Contains(script, "command -v") {
+			if strings.Contains(testutil.SSHRemoteCommand(t, args), "command -v") {
 				called = true
-				if strings.Contains(script, "codex") {
-					return []byte("/opt/box/bin/codex\n"), nil
-				}
-				return nil, fmt.Errorf("exit status 1")
 			}
-			cmd := exec.Command("sh", "-c", script)
-			if stdin != nil {
-				cmd.Stdin = bytes.NewReader(stdin)
-			}
-			out, err := cmd.Output()
-			return out, err
+			return shell(stdin, name, args...)
 		},
 	}
 	snap, err := ReadOne(codex.Adapter{}, fsys, home)
@@ -73,7 +58,7 @@ func TestReadOneInstalledUsesRemoteLookPath(t *testing.T) {
 	if !called {
 		t.Fatal("expected remote command -v")
 	}
-	if !snap.Installed || snap.InstalledPath != "/opt/box/bin/codex" {
+	if !snap.Installed || snap.InstalledPath != bin {
 		t.Fatalf("installed=%v path=%q", snap.Installed, snap.InstalledPath)
 	}
 	if snap.Version != "" {

@@ -36,7 +36,7 @@ func (s SSH) args(remoteCmd string) []string {
 	if s.Identity != "" {
 		out = append(out, "-i", s.Identity)
 	}
-	out = append(out, s.Target, "--", "sh", "-c", remoteCmd)
+	out = append(out, s.Target, "--", "sh", "-c", shq(remoteCmd))
 	return out
 }
 
