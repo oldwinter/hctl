@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/oldwinter/hctl/internal/config"
 	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/testutil"
 )
@@ -869,4 +870,52 @@ func TestGetContextsMissingFileNamesSetContext(t *testing.T) {
 	if !strings.Contains(out, "config file not created yet") || !strings.Contains(out, "set-context") {
 		t.Fatalf("first-run get-contexts should name set-context:\n%s", out)
 	}
+}
+
+func TestSetContextRejectsUnknownKind(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	_, err := run(t, "--config", cfgPath, "config", "set-context", "bad", "--kind", "bogus", "--ssh", "user@example.com")
+	if err == nil {
+		t.Fatal("expected usage error")
+	}
+	if exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("exit = %d want %d (%v)", exitcode.From(err), exitcode.Usage, err)
+	}
+	if _, statErr := os.Stat(cfgPath); !os.IsNotExist(statErr) {
+		t.Fatal("rejected --kind must not write the config file")
+	}
+}
+
+func TestSetContextMergesUnflaggedFields(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	if _, err := run(t, "--config", cfgPath, "config", "set-context", "box", "--ssh", "user@box", "--identity", "/tmp/key", "--home", "/remote/home"); err != nil {
+		t.Fatal(err)
+	}
+	nc := loadContext(t, cfgPath, "box")
+	if nc.Context.Kind != config.KindSSH {
+		t.Fatalf("--ssh should infer kind ssh on create: %+v", nc.Context)
+	}
+	if _, err := run(t, "--config", cfgPath, "config", "set-context", "box", "--home", "/other/home"); err != nil {
+		t.Fatal(err)
+	}
+	nc = loadContext(t, cfgPath, "box")
+	if nc.Context.Home != "/other/home" {
+		t.Fatalf("--home update not applied: %+v", nc.Context)
+	}
+	if nc.Context.Kind != config.KindSSH || nc.Context.SSH != "user@box" || nc.Context.IdentityFile != "/tmp/key" {
+		t.Fatalf("update wiped unflagged fields: %+v", nc.Context)
+	}
+}
+
+func loadContext(t *testing.T, cfgPath, name string) config.NamedContext {
+	t.Helper()
+	f, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nc, err := f.Get(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return nc
 }
