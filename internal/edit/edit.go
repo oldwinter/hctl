@@ -232,8 +232,7 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 		if trim == "" || strings.HasPrefix(trim, "#") {
 			continue
 		}
-		if strings.HasPrefix(trim, "[") && strings.HasSuffix(trim, "]") && !strings.HasPrefix(trim, "[[") {
-			hdr := strings.TrimSpace(trim[1 : len(trim)-1])
+		if hdr, ok := tomlTableScope(trim); ok {
 			current = hdr
 			if hdr == wantHeader {
 				headerLine = i
@@ -260,8 +259,7 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 		// append before first table
 		insertAt := len(lines)
 		for i, line := range lines {
-			trim := strings.TrimSpace(line)
-			if strings.HasPrefix(trim, "[") {
+			if _, ok := tomlTableScope(line); ok {
 				insertAt = i
 				break
 			}
@@ -273,8 +271,7 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 		// insert after header (and any following blanks/comments/keys — at end of table)
 		end := headerLine + 1
 		for end < len(lines) {
-			trim := strings.TrimSpace(lines[end])
-			if strings.HasPrefix(trim, "[") {
+			if _, ok := tomlTableScope(lines[end]); ok {
 				break
 			}
 			end++
@@ -288,6 +285,37 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 	}
 	lines = append(lines, "["+wantHeader+"]", newline)
 	return joinTOML(lines), nil
+}
+
+// tomlTableScope ignores trailing comments outside quoted header keys.
+// Array tables retain their inner brackets so they cannot match a regular table.
+func tomlTableScope(line string) (string, bool) {
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, "[") {
+		return "", false
+	}
+	var quote byte
+	for i := 1; i < len(line); i++ {
+		c := line[i]
+		if quote != 0 {
+			if quote == '"' && c == '\\' {
+				i++
+			} else if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if c == '"' || c == '\'' {
+			quote = c
+		} else if c == '#' {
+			line = strings.TrimSpace(line[:i])
+			break
+		}
+	}
+	if !strings.HasSuffix(line, "]") {
+		return "", false
+	}
+	return strings.TrimSpace(line[1 : len(line)-1]), true
 }
 
 func tomlHeader(table []string) string {
