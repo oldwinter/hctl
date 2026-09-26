@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -107,6 +108,18 @@ func (s SSH) ReadFile(name string) ([]byte, error) {
 func (s SSH) WriteFile(name string, data []byte, perm os.FileMode) error {
 	mode := fmt.Sprintf("%04o", perm&0o777)
 	_, err := s.run(data, fmt.Sprintf(`umask 077; mkdir -p %s; cat > %s; chmod %s %s`, shq(path.Dir(name)), shq(name), mode, shq(name)))
+	return err
+}
+
+// WriteNewFile fails when name exists: the -e/-L check reports it as exit 17
+// (EEXIST) and set -C noclobber backstops any symlink planted after the check.
+func (s SSH) WriteNewFile(name string, data []byte, perm os.FileMode) error {
+	mode := fmt.Sprintf("%04o", perm&0o777)
+	_, err := s.run(data, fmt.Sprintf(`umask 077; if [ -e %s ] || [ -L %s ]; then exit 17; fi; set -C; cat > %s && chmod %s %s`,
+		shq(name), shq(name), shq(name), mode, shq(name)))
+	if err != nil && isExit(err, 17) {
+		return fmt.Errorf("%s: %w", name, fs.ErrExist)
+	}
 	return err
 }
 
