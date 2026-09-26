@@ -56,7 +56,9 @@ func Parse(data []byte, ext string) (*model.DesiredFile, error) {
 // DiffAgainst returns changes from current snapshots to desired using the
 // shared field table. Unknown harness names are still compared against an
 // empty snapshot; callers that must fail closed (diff -f, apply) use ByName.
-func DiffAgainst(want *model.DesiredFile, snaps []model.Snapshot) []model.Change {
+// endpoints contains full writable URLs, keyed by harness, only for adapters
+// that expose them. Missing entries retain the snapshot host comparison.
+func DiffAgainst(want *model.DesiredFile, snaps []model.Snapshot, endpoints map[string]string) []model.Change {
 	byName := map[string]model.Snapshot{}
 	for _, s := range snaps {
 		byName[s.Name] = s
@@ -68,7 +70,11 @@ func DiffAgainst(want *model.DesiredFile, snaps []model.Snapshot) []model.Change
 	sort.Strings(names)
 	var out []model.Change
 	for _, name := range names {
-		out = append(out, model.ChangesFromDesired(name, byName[name], want.Harnesses[name])...)
+		var endpoint *string
+		if current, ok := endpoints[name]; ok {
+			endpoint = &current
+		}
+		out = append(out, model.ChangesFromDesired(name, byName[name], want.Harnesses[name], endpoint)...)
 	}
 	return out
 }

@@ -23,11 +23,11 @@ func TestDiffAgainst(t *testing.T) {
 		t.Fatal(err)
 	}
 	snaps := []model.Snapshot{{Name: "codex", DefaultModel: "gpt-5.2-codex", Provider: "custom"}}
-	ch := DiffAgainst(want, snaps)
+	ch := DiffAgainst(want, snaps, nil)
 	if len(ch) == 0 {
 		t.Fatal("expected model change")
 	}
-	same := model.ChangesFromDesired("codex", snaps[0], want.Harnesses["codex"])
+	same := model.ChangesFromDesired("codex", snaps[0], want.Harnesses["codex"], nil)
 	if len(same) == 0 {
 		t.Fatal("shared table should produce the same codex model change")
 	}
@@ -40,5 +40,22 @@ func TestDiffAgainst(t *testing.T) {
 	}
 	if got != same[0] {
 		t.Fatalf("diff vs table: %#v vs %#v", got, same[0])
+	}
+}
+
+func TestDiffAgainstFullEndpoint(t *testing.T) {
+	want := &model.DesiredFile{Harnesses: map[string]model.Desired{
+		"hermes": {BaseURL: "https://gateway.example/new/v1"},
+	}}
+	snaps := []model.Snapshot{{Name: "hermes", BaseURLHost: "gateway.example"}}
+	for _, current := range []string{"https://gateway.example/old/v1", "http://gateway.example/new/v1", ""} {
+		changes := DiffAgainst(want, snaps, map[string]string{"hermes": current})
+		if len(changes) != 1 || changes[0].Field != "baseUrl" {
+			t.Fatalf("current=%q changes=%#v", current, changes)
+		}
+	}
+	changes := DiffAgainst(want, snaps, map[string]string{"hermes": want.Harnesses["hermes"].BaseURL})
+	if len(changes) != 0 {
+		t.Fatalf("unchanged endpoint should have no diff: %#v", changes)
 	}
 }

@@ -62,7 +62,10 @@ func Preflight(req Request) (Plan, error) {
 		return plan, snapshotParseError(before, "destination")
 	}
 	plan.before = before
-	rep.Changes = model.ChangesFromDesired(before.Name, before, req.Desired)
+	rep.Changes, err = changesFromDesired(req, before)
+	if err != nil {
+		return plan, err
+	}
 	if err := ownership.Check(req.FS, req.Home, before.ConfigPaths, req.Ownership); err != nil {
 		return plan, err
 	}
@@ -142,12 +145,28 @@ func ApplyPrepared(plan Plan) (model.ApplyReport, error) {
 	if after.ParseError != "" {
 		return rep, exitcode.Errorf(exitcode.Parse, "%s: parse error after write: %s", after.Name, after.ParseError)
 	}
-	if leftover := model.ChangesFromDesired(after.Name, after, req.Desired); len(leftover) > 0 {
+	leftover, err := changesFromDesired(req, after)
+	if err != nil {
+		return rep, exitcode.Wrap(exitcode.Verify, err)
+	}
+	if len(leftover) > 0 {
 		c := leftover[0]
 		return rep, exitcode.Errorf(exitcode.Verify, "%s: %s verify failed: got %q want %q", after.Name, c.Field, c.From, c.To)
 	}
 	rep.Verified = true
 	return rep, nil
+}
+
+func changesFromDesired(req Request, snap model.Snapshot) ([]model.Change, error) {
+	var endpoint *string
+	if reader, ok := req.Adapter.(adapters.EndpointReader); ok && req.Desired.BaseURL != "" {
+		current, err := reader.ReadEndpoint(req.FS, req.Home)
+		if err != nil {
+			return nil, err
+		}
+		endpoint = &current
+	}
+	return model.ChangesFromDesired(snap.Name, snap, req.Desired, endpoint), nil
 }
 
 // DefaultBackupDir is $HCTL_BACKUP_DIR, else $HARNESSCTL_BACKUP_DIR, else
