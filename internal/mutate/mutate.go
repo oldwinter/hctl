@@ -80,7 +80,7 @@ func Preflight(req Request) (Plan, error) {
 	return plan, nil
 }
 
-// Apply writes fields after preflight, backs up, and re-reads to verify.
+// Apply preflights, backs up, writes fields, and re-reads to verify.
 func Apply(req Request) (model.ApplyReport, error) {
 	plan, err := Preflight(req)
 	if err != nil {
@@ -109,26 +109,24 @@ func ApplyPrepared(plan Plan) (model.ApplyReport, error) {
 	if req.BackupDir == "" {
 		req.BackupDir = DefaultBackupDir("")
 	}
-	beforeBytes := map[string][]byte{}
+	// Back up every known config before invoking a writer that may partially
+	// mutate files and return an error without reporting their paths.
 	for _, p := range plan.before.ConfigPaths {
 		data, err := fsx.ReadMaybe(req.FS, p)
 		if err != nil {
 			return rep, err
 		}
-		beforeBytes[p] = data
-	}
-	paths, err := plan.writer.WriteFields(req.FS, req.Home, req.Desired)
-	if err != nil {
-		return rep, err
-	}
-	for _, p := range paths {
-		bak, err := fsx.BackupLocal(req.BackupDir, req.Adapter.Name(), p, beforeBytes[p])
+		bak, err := fsx.BackupLocal(req.BackupDir, req.Adapter.Name(), p, data)
 		if err != nil {
 			return rep, err
 		}
 		if bak != "" {
 			rep.Backups = append(rep.Backups, bak)
 		}
+	}
+	paths, err := plan.writer.WriteFields(req.FS, req.Home, req.Desired)
+	if err != nil {
+		return rep, err
 	}
 	for i := range rep.Changes {
 		if len(paths) > 0 {
