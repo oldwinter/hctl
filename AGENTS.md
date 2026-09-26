@@ -14,6 +14,6 @@
 
 Backup → temp file → rename → re-read verify. JSONC comments are dropped on write (documented).
 
-## Layout
+## Verify
 
-`cmd/`, `internal/cli`, `internal/config`, `internal/model`, `internal/adapters/<harness>`, `internal/edit`, `internal/fsx`, `internal/mutate`, `internal/remote`, `internal/render`, `testdata/`.
+`just fmt lint test`; CLI surface changes also `just smoke`.
