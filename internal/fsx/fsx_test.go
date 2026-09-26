@@ -173,22 +173,31 @@ func TestAtomicWriteRemovesTempOnRenameFailure(t *testing.T) {
 	assertNoTempResidue(t, dir)
 }
 
-type failWriteFS struct{ Local }
+// foreignTempFS fails as if a competing writer occupied name: the entry is
+// not this call's reservation, so AtomicWrite must not remove it on the
+// non-ErrExist error path.
+type foreignTempFS struct{ Local }
 
-func (f failWriteFS) WriteNewFile(name string, data []byte, perm os.FileMode) error {
-	if err := f.Local.WriteNewFile(name, []byte("partial"), perm); err != nil {
+func (foreignTempFS) WriteNewFile(name string, data []byte, perm os.FileMode) error {
+	if err := os.WriteFile(name, []byte("other-writer"), 0o600); err != nil {
 		return err
 	}
-	return errors.New("write failed midway")
+	return errors.New("write failed")
 }
 
-func TestAtomicWriteRemovesTempOnWriteFailure(t *testing.T) {
+func TestAtomicWritePreservesUnownedTempOnFailure(t *testing.T) {
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "config.json")
-	if err := AtomicWrite(failWriteFS{}, dest, []byte("new-config"), 0o600); err == nil {
+	if err := AtomicWrite(foreignTempFS{}, dest, []byte("new-config"), 0o600); err == nil {
 		t.Fatal("expected write failure")
 	}
-	assertNoTempResidue(t, dir)
+	matches, err := filepath.Glob(dest + ".harnessctl-tmp.*")
+	if err != nil || len(matches) != 1 {
+		t.Fatalf("temp glob=%v err=%v", matches, err)
+	}
+	if data, err := os.ReadFile(matches[0]); err != nil || string(data) != "other-writer" {
+		t.Fatalf("foreign temp overwritten: %q err=%v", data, err)
+	}
 }
 
 func TestLocalWriteNewFileRejectsExisting(t *testing.T) {

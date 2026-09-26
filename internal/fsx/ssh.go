@@ -111,12 +111,26 @@ func (s SSH) WriteFile(name string, data []byte, perm os.FileMode) error {
 	return err
 }
 
-// WriteNewFile fails when name exists: the -e/-L check reports it as exit 17
-// (EEXIST) and set -C noclobber backstops any symlink planted after the check.
+// WriteNewFile fails with exit 17 (EEXIST) when name exists. The reservation
+// is mkdir of a sibling dir: it atomically rejects any existing entry, and the
+// payload is written inside that private dir so a path planted at name after
+// the reservation is never opened. The payload is then published with ln, a
+// hard-link create that fails EEXIST on any entry — file, dir, symlink, or
+// FIFO — occupying name. (set -C noclobber is not an exclusive create: sh
+// still opens non-regular files such as FIFOs through a planted symlink.)
 func (s SSH) WriteNewFile(name string, data []byte, perm os.FileMode) error {
 	mode := fmt.Sprintf("%04o", perm&0o777)
-	_, err := s.run(data, fmt.Sprintf(`umask 077; if [ -e %s ] || [ -L %s ]; then exit 17; fi; set -C; cat > %s && chmod %s %s`,
-		shq(name), shq(name), shq(name), mode, shq(name)))
+	work := name + ".d"
+	payload := work + "/payload"
+	_, err := s.run(data, fmt.Sprintf(`umask 077; `+
+		`if ! mkdir %s 2>/dev/null; then if [ -e %s ] || [ -L %s ]; then exit 17; fi; exit 1; fi; `+
+		`cat > %s && chmod %s %s && ln %s %s; rc=$?; `+
+		`rm -f %s; rmdir %s 2>/dev/null; `+
+		`if [ $rc -ne 0 ]; then if [ -e %s ] || [ -L %s ]; then exit 17; fi; exit 1; fi`,
+		shq(work), shq(work), shq(work),
+		shq(payload), mode, shq(payload), shq(payload), shq(name),
+		shq(payload), shq(work),
+		shq(name), shq(name)))
 	if err != nil && isExit(err, 17) {
 		return fmt.Errorf("%s: %w", name, fs.ErrExist)
 	}

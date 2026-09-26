@@ -20,7 +20,9 @@ type FS interface {
 	ReadFile(name string) ([]byte, error)
 	WriteFile(name string, data []byte, perm os.FileMode) error
 	// WriteNewFile creates name exclusively and fails with fs.ErrExist when
-	// the name is taken. It never follows a planted symlink.
+	// the name is taken — including entries planted after any preliminary
+	// check. It never follows a planted symlink. On failure it removes
+	// whatever it created, so name is never the caller's to clean up.
 	WriteNewFile(name string, data []byte, perm os.FileMode) error
 	Stat(name string) (os.FileInfo, error)
 	MkdirAll(name string, perm os.FileMode) error
@@ -44,9 +46,14 @@ func (Local) WriteNewFile(name string, data []byte, perm os.FileMode) error {
 	}
 	if _, err := f.Write(data); err != nil {
 		_ = f.Close()
+		_ = os.Remove(name)
 		return err
 	}
-	return f.Close()
+	if err := f.Close(); err != nil {
+		_ = os.Remove(name)
+		return err
+	}
+	return nil
 }
 func (Local) Stat(name string) (os.FileInfo, error) { return os.Stat(name) }
 func (Local) MkdirAll(name string, perm os.FileMode) error {
@@ -110,6 +117,9 @@ func ExistsAny(fsys FS, name string) bool {
 }
 
 // AtomicWrite writes via a uniquely reserved sibling temp file then rename.
+// WriteNewFile owns cleanup of failed reservations — it reports collisions as
+// fs.ErrExist so they are retried — so a failed WriteNewFile never implies
+// AtomicWrite may remove tmp; only a successful reservation is ours to remove.
 func AtomicWrite(fsys FS, name string, data []byte, perm os.FileMode) error {
 	if err := fsys.MkdirAll(dirOf(fsys, name), 0o700); err != nil {
 		return err
@@ -122,7 +132,6 @@ func AtomicWrite(fsys FS, name string, data []byte, perm os.FileMode) error {
 			break
 		}
 		if !errors.Is(err, fs.ErrExist) {
-			_ = fsys.Remove(tmp)
 			return err
 		}
 	}

@@ -3,10 +3,12 @@ package fsx
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -121,6 +123,113 @@ func TestSSHWriteNewFileRejectsExisting(t *testing.T) {
 	}
 	if data, err := os.ReadFile(fresh); err != nil || string(data) != "new" {
 		t.Fatalf("fresh=%q err=%v", data, err)
+	}
+}
+
+// sshPublishRe locates the hard-link publish step inside WriteNewFile's
+// remote script; group 1 is the reserved temp path.
+var sshPublishRe = regexp.MustCompile(`ln '[^']*' '([^']*)'`)
+
+// plantingRunner executes the remote script locally like localRunner, but
+// injects plant(tmp) between the mkdir reservation and the ln publish of the
+// first WriteNewFile attempt — a racer that lands after the exclusive check.
+func plantingRunner(t *testing.T, root string, plant func(tmp string) string) Runner {
+	t.Helper()
+	injected := false
+	return func(stdin []byte, name string, args ...string) ([]byte, error) {
+		if name != "ssh" {
+			t.Fatalf("name=%s", name)
+		}
+		script := args[len(args)-1]
+		if !injected && strings.Contains(script, "&& ln ") {
+			m := sshPublishRe.FindStringSubmatch(script)
+			if m == nil {
+				t.Fatalf("no publish step in %q", script)
+			}
+			script = strings.Replace(script, "&& ln ", "&& "+plant(m[1])+" && ln ", 1)
+			injected = true
+		}
+		c := exec.Command("sh", "-c", script)
+		c.Dir = root
+		if stdin != nil {
+			c.Stdin = bytes.NewReader(stdin)
+		}
+		return c.Output()
+	}
+}
+
+func TestSSHAtomicWriteRejectsRacingFIFOSymlink(t *testing.T) {
+	root := t.TempDir()
+	fifo := filepath.Join(root, "planted.fifo")
+	if out, err := exec.Command("mkfifo", fifo).CombinedOutput(); err != nil {
+		t.Fatalf("mkfifo: %v %s", err, out)
+	}
+	// O_RDWR opens without a peer and never reports EOF, so any read means
+	// the payload traversed the planted symlink into the FIFO.
+	pipe, err := os.OpenFile(fifo, os.O_RDWR, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = pipe.Close() }()
+	received := make(chan []byte, 1)
+	go func() {
+		buf := make([]byte, 4096)
+		n, err := pipe.Read(buf)
+		if err != nil {
+			n = 0
+		}
+		received <- buf[:n]
+	}()
+
+	var planted string
+	s := SSH{Target: "user@box", Run: plantingRunner(t, root, func(tmp string) string {
+		planted = tmp
+		return fmt.Sprintf("ln -s %s %s", shq(fifo), shq(tmp))
+	})}
+	dest := s.Join(root, "config.json")
+	if err := AtomicWrite(s, dest, []byte("new-config"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if planted == "" {
+		t.Fatal("plant never ran")
+	}
+	st, err := os.Lstat(planted)
+	if err != nil || st.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("planted tmp=%v err=%v", st, err)
+	}
+	select {
+	case b := <-received:
+		t.Fatalf("payload reached fifo: %q", b)
+	case <-time.After(300 * time.Millisecond):
+	}
+	st, err = os.Lstat(dest)
+	if err != nil || !st.Mode().IsRegular() {
+		t.Fatalf("dest=%v err=%v", st, err)
+	}
+	if data, err := os.ReadFile(dest); err != nil || string(data) != "new-config" {
+		t.Fatalf("dest=%q err=%v", data, err)
+	}
+}
+
+func TestSSHAtomicWritePreservesRacingRegularFile(t *testing.T) {
+	root := t.TempDir()
+	var planted string
+	s := SSH{Target: "user@box", Run: plantingRunner(t, root, func(tmp string) string {
+		planted = tmp
+		return fmt.Sprintf("printf %%s %s > %s", shq("other-writer"), shq(tmp))
+	})}
+	dest := s.Join(root, "config.json")
+	if err := AtomicWrite(s, dest, []byte("new-config"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if planted == "" {
+		t.Fatal("plant never ran")
+	}
+	if data, err := os.ReadFile(planted); err != nil || string(data) != "other-writer" {
+		t.Fatalf("competing temp overwritten: %q err=%v", data, err)
+	}
+	if data, err := os.ReadFile(dest); err != nil || string(data) != "new-config" {
+		t.Fatalf("dest=%q err=%v", data, err)
 	}
 }
 
