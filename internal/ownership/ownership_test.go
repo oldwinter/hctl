@@ -1,16 +1,15 @@
 package ownership
 
 import (
-	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/testutil"
 )
 
 func TestPointerBlocksManagedPathAndAllowsExplicitOverride(t *testing.T) {
@@ -124,13 +123,7 @@ func TestOwnershipCheckUsesSSHFilesystem(t *testing.T) {
 	writePointer(t, home, manifestPath)
 	remote := fsx.SSH{
 		Target: "fixture@host",
-		Run: func(stdin []byte, name string, args ...string) ([]byte, error) {
-			cmd := exec.Command("sh", "-c", args[len(args)-1])
-			if stdin != nil {
-				cmd.Stdin = bytes.NewReader(stdin)
-			}
-			return cmd.Output()
-		},
+		Run:    testutil.SSHLocalRunner(t),
 	}
 	err := Check(remote, home, []string{remote.Join(home, ".pi", "agent", "auth.json")}, Options{})
 	if err == nil || !strings.Contains(err.Error(), "managed") {
