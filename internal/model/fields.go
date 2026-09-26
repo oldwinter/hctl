@@ -25,11 +25,6 @@ var desiredFields = []desiredField{
 		syncName: "base-url",
 		current:  func(s Snapshot) string { return s.BaseURLHost },
 		wanted:   func(d Desired) string { return d.BaseURL },
-		// Snapshots only expose the endpoint host, so equality and projection
-		// both run at host level; the full URL only travels the write path.
-		equal: func(want, got string) bool {
-			return want == got || secret.HostOf(want) == got
-		},
 	},
 	{
 		name:     "secretRef",
@@ -45,7 +40,6 @@ type desiredField struct {
 	syncName string
 	current  func(Snapshot) string
 	wanted   func(Desired) string
-	equal    func(want, got string) bool
 	project  func(*Desired, string)
 }
 
@@ -61,7 +55,9 @@ func (d Desired) Empty() bool {
 
 // ChangesFromDesired is the only desired-vs-snapshot compare. It is used by
 // diff -f, mutate.Preflight, and post-write verify.
-func ChangesFromDesired(harness string, snap Snapshot, d Desired) []Change {
+// currentEndpoint supplies the full writable endpoint when available; nil
+// falls back to host-only comparison. Full URLs never enter returned changes.
+func ChangesFromDesired(harness string, snap Snapshot, d Desired, currentEndpoint *string) []Change {
 	if harness == "" {
 		harness = snap.Name
 	}
@@ -72,12 +68,18 @@ func ChangesFromDesired(harness string, snap Snapshot, d Desired) []Change {
 			continue
 		}
 		got := f.current(snap)
-		if f.equal != nil {
-			if f.equal(want, got) {
-				continue
+		if f.name == "baseUrl" {
+			if currentEndpoint != nil {
+				got = *currentEndpoint
+			} else {
+				want = secret.HostOf(want)
 			}
-		} else if want == got {
+		}
+		if want == got {
 			continue
+		}
+		if f.name == "baseUrl" {
+			got, want = secret.HostOf(got), secret.HostOf(want)
 		}
 		ch := Change{Harness: harness, Field: f.name, From: got, To: want}
 		if len(snap.ConfigPaths) > 0 {

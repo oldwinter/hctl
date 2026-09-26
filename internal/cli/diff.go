@@ -101,7 +101,24 @@ func runDiffDesired(cmd *cobra.Command, opts *options, filename string) error {
 	if err != nil {
 		return err
 	}
-	changes := desired.DiffAgainst(want, snaps)
+	endpoints := map[string]string{}
+	for name, d := range want.Harnesses {
+		if d.BaseURL == "" {
+			continue
+		}
+		ad, err := adapters.ByName(name)
+		if err != nil {
+			return err
+		}
+		if reader, ok := ad.(adapters.EndpointReader); ok {
+			endpoint, err := reader.ReadEndpoint(fsys, home)
+			if err != nil {
+				return err
+			}
+			endpoints[name] = endpoint
+		}
+	}
+	changes := desired.DiffAgainst(want, snaps, endpoints)
 	if opts.wantJSON() {
 		return render.JSON(cmd.OutOrStdout(), map[string]any{
 			"file":    filename,
