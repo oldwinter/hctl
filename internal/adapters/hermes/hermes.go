@@ -90,6 +90,7 @@ func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 		}
 	} else if len(cfg.Providers) == 1 {
 		for name, p := range cfg.Providers {
+			providerID = name
 			if snap.Provider == "" {
 				snap.Provider = name
 			}
@@ -271,6 +272,13 @@ func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) erro
 	if p, ambiguous := activeCustomProvider(cfg, providerID, activeEndpoint); ambiguous || p != nil && p.APIKey != "" {
 		return exitcode.Errorf(exitcode.Usage, "set secretRef is unsupported while Hermes uses an inline custom_providers API key")
 	}
+	return validateSecretRefProvider(providerID)
+}
+
+func validateSecretRefProvider(providerID string) error {
+	if providerID == "" || providerID == "auto" {
+		return exitcode.Errorf(exitcode.Usage, "Hermes secretRef needs a selected provider (set provider, or configure model.provider first)")
+	}
 	return nil
 }
 
@@ -332,15 +340,10 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 		}
 	}
 	if d.SecretRef != "" {
-		prov := d.Provider
-		if prov == "" {
-			snap, _ := a.Read(fsys, home)
-			prov = snap.Provider
+		_, prov, _, err := readActiveConfig(fsys, home, d.Provider)
+		if err != nil {
+			return nil, err
 		}
-		if prov == "" || prov == "auto" {
-			prov = "custom"
-		}
-		prov = strings.TrimPrefix(prov, "custom:")
 		data, err = edit.SetYAML(data, []string{"providers", prov, "key_env"}, d.SecretRef)
 		if err != nil {
 			return nil, err
@@ -387,28 +390,33 @@ func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home string, d model.Desired) 
 	if p, ambiguous := activeCustomProvider(cfg, providerID, activeEndpoint); ambiguous || p != nil && p.APIKey != "" {
 		return exitcode.Errorf(exitcode.Usage, "secret copy is unsupported while Hermes uses an inline custom_providers API key")
 	}
+	if d.SecretRef != "" {
+		return validateSecretRefProvider(providerID)
+	}
 	return nil
 }
 
 func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
-	if err := a.ValidateSecretWrite(fsys, home, model.Desired{}); err != nil {
+	if ref == "" && value == "" {
+		return nil
+	}
+	desired := model.Desired{}
+	if value == "" {
+		desired.SecretRef = ref
+	}
+	if err := a.ValidateSecretWrite(fsys, home, desired); err != nil {
 		return err
 	}
 	if value == "" {
-		if ref == "" {
-			return nil
-		}
 		cfgPath := fsys.Join(home, ".hermes", "config.yaml")
 		data, err := fsx.ReadMaybe(fsys, cfgPath)
 		if err != nil {
 			return err
 		}
-		snap, _ := a.Read(fsys, home)
-		prov := snap.Provider
-		if prov == "" || prov == "auto" {
-			prov = "custom"
+		_, prov, _, err := readActiveConfig(fsys, home, "")
+		if err != nil {
+			return err
 		}
-		prov = strings.TrimPrefix(prov, "custom:")
 		data, err = edit.SetYAML(data, []string{"providers", prov, "key_env"}, ref)
 		if err != nil {
 			return err
@@ -433,7 +441,7 @@ func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
 
 func readActiveConfig(fsys fsx.FS, home, providerOverride string) (file, string, string, error) {
 	data, err := fsx.ReadMaybe(fsys, fsys.Join(home, ".hermes", "config.yaml"))
-	if err != nil || data == nil {
+	if err != nil {
 		return file{}, "", "", err
 	}
 	var cfg file
@@ -446,6 +454,11 @@ func readActiveConfig(fsys fsx.FS, home, providerOverride string) (file, string,
 		raw, _ := yaml.Marshal(cfg.Model)
 		_ = yaml.Unmarshal(raw, &obj)
 		providerID = strings.TrimPrefix(obj.Provider, "custom:")
+	}
+	if providerID == "" && len(cfg.Providers) == 1 {
+		for name := range cfg.Providers {
+			providerID = name
+		}
 	}
 	activeEndpoint := ""
 	if provider, ok := cfg.Providers[providerID]; ok {

@@ -217,11 +217,6 @@ func PreflightSecret(req SecretRequest) (SecretPlan, error) {
 	if err := ownership.Check(req.DstFS, req.DstHome, dst.ConfigPaths, req.Ownership); err != nil {
 		return plan, err
 	}
-	if validator, ok := req.Adapter.(secretWriteValidator); ok {
-		if err := validator.ValidateSecretWrite(req.DstFS, req.DstHome, req.Desired); err != nil {
-			return plan, err
-		}
-	}
 	src, err := adapters.ReadOne(req.Adapter, req.SrcFS, req.SrcHome)
 	if err != nil {
 		return plan, err
@@ -247,6 +242,15 @@ func PreflightSecret(req SecretRequest) (SecretPlan, error) {
 		plan.out.Action = "bearer"
 	case ref != "":
 		plan.out.Action = "secret-ref"
+	}
+	desired := req.Desired
+	if plan.out.Action == "secret-ref" {
+		desired.SecretRef = ref
+	}
+	if validator, ok := req.Adapter.(secretWriteValidator); ok {
+		if err := validator.ValidateSecretWrite(req.DstFS, req.DstHome, desired); err != nil {
+			return plan, err
+		}
 	}
 	return plan, nil
 }
