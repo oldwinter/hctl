@@ -265,6 +265,11 @@ func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err er
 	if i := strings.IndexByte(cfg.Model, '/'); i > 0 {
 		prov = cfg.Model[:i]
 	}
+	if prov == "" && len(nodes) == 1 {
+		for name := range nodes {
+			prov = name
+		}
+	}
 	n, ok := nodes[prov]
 	if !ok {
 		return "", "", nil

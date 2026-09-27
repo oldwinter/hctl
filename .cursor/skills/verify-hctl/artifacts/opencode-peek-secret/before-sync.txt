@@ -1,0 +1,7 @@
+command: /tmp/hctl-verify-peek-before/bin/hctl --config /tmp/hctl-verify-peek-before/config.yaml --no-probe sync --from mba --to box --harness opencode --fields secret 
+run_id: peek-before
+exit: 0
+----- stdout -----
+no changes
+----- stderr -----
+
