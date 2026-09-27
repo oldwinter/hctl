@@ -1,0 +1,15 @@
+command: /tmp/hctl-verify-peek-before/bin/hctl --config /tmp/hctl-verify-peek-before/config.yaml --no-probe describe harness opencode
+run_id: peek-before
+exit: 0
+----- stdout -----
+Name:              opencode
+Context:           mba
+Installed:         /Users/oldwinter/.opencode/bin/opencode
+Config Found:      true
+Config Paths:      /tmp/hctl-verify-peek-before/homes/home-a/.config/opencode/opencode.jsonc
+Provider:          acme
+Default Model:     gpt-5
+Effort:            -
+Base Host:         api.acme.example
+Secret:            sha256:b6310a05
+----- stderr -----
