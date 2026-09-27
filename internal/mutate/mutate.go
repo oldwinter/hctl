@@ -25,7 +25,7 @@ type desiredValidator interface {
 }
 
 type secretWriteValidator interface {
-	ValidateSecretWrite(fsys fsx.FS, home, provider string) error
+	ValidateSecretWrite(fsys fsx.FS, home string, d model.Desired) error
 }
 
 // Request is a single-harness apply.
@@ -174,6 +174,9 @@ func DefaultBackupDir(configPath string) string {
 }
 
 // SecretRequest describes a destination-guarded secret transfer.
+// Desired carries the pending field writes of the same sync so validators can
+// resolve the selector (provider, default model) that will be active when the
+// secret lands.
 type SecretRequest struct {
 	Adapter   adapters.Adapter
 	SrcFS     fsx.FS
@@ -181,7 +184,7 @@ type SecretRequest struct {
 	DstFS     fsx.FS
 	DstHome   string
 	PreferRef bool
-	Provider  string
+	Desired   model.Desired
 	DryRun    bool
 	BackupDir string
 	Ownership ownership.Options
@@ -215,7 +218,7 @@ func PreflightSecret(req SecretRequest) (SecretPlan, error) {
 		return plan, err
 	}
 	if validator, ok := req.Adapter.(secretWriteValidator); ok {
-		if err := validator.ValidateSecretWrite(req.DstFS, req.DstHome, req.Provider); err != nil {
+		if err := validator.ValidateSecretWrite(req.DstFS, req.DstHome, req.Desired); err != nil {
 			return plan, err
 		}
 	}

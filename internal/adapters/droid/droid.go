@@ -188,7 +188,7 @@ func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err er
 	return "", value, nil
 }
 
-func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home, provider string) error {
+func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home string, _ model.Desired) error {
 	cfg, err := readSettings(fsys, home)
 	if err != nil {
 		return err
@@ -200,7 +200,7 @@ func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home, provider string) error {
 }
 
 func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
-	if err := a.ValidateSecretWrite(fsys, home, ""); err != nil {
+	if err := a.ValidateSecretWrite(fsys, home, model.Desired{}); err != nil {
 		return err
 	}
 	path := fsys.Join(home, ".factory", "settings.json")

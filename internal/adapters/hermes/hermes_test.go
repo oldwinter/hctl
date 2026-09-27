@@ -69,7 +69,7 @@ custom_providers:
 	if snap.SecretRef != "HERMES_CUSTOM_SUB2API_API_KEY" || snap.SecretFingerprint != secret.Fingerprint("sk-test-aaa") {
 		t.Fatalf("snapshot=%+v", snap)
 	}
-	if err := (Adapter{}).ValidateSecretWrite(fsx.Local{}, home, ""); err == nil {
+	if err := (Adapter{}).ValidateSecretWrite(fsx.Local{}, home, model.Desired{}); err == nil {
 		t.Fatal("expected inline custom provider secret write refusal")
 	}
 }
