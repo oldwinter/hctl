@@ -20,6 +20,41 @@ func TestTOMLTableBoundaries(t *testing.T) {
 			path: []string{"model_providers", "custom", "env_key"},
 		},
 		{
+			name: "nested-array-element-is-not-header",
+			src:  "[models]\narr = [\n  [[1, 2]]\n]\ndefault = \"old\"\n",
+			path: []string{"models", "default"},
+		},
+		{
+			name: "commented-array-element-is-not-header",
+			src:  "[models]\narr = [\n  [1, 2] # element\n]\ndefault = \"old\"\n",
+			path: []string{"models", "default"},
+		},
+		{
+			name: "basic-multiline-string-is-not-header",
+			src:  "[models]\nnotes = \"\"\"\n[other] # text\n\"\"\"\ndefault = \"old\"\n",
+			path: []string{"models", "default"},
+		},
+		{
+			name: "literal-multiline-string-is-not-header",
+			src:  "[models]\nnotes = '''\n[[profiles]] # text\n'''\ndefault = \"old\"\n",
+			path: []string{"models", "default"},
+		},
+		{
+			name: "insert-after-whole-array",
+			src:  "[models]\narr = [\n  [[1, 2]]\n]\n[other]\nkeep = true\n",
+			path: []string{"models", "default"},
+		},
+		{
+			name: "insert-root-after-whole-array",
+			src:  "arr = [\n  [[1, 2]]\n]\n[[profiles]]\nmodel = \"profile\"\n",
+			path: []string{"model"},
+		},
+		{
+			name: "assignment-inside-multiline-string-is-not-key",
+			src:  "notes = '''\nmodel = \"text\"\n'''\nmodel = \"old\"\n",
+			path: []string{"model"},
+		},
+		{
 			name: "array-header",
 			src:  "# preserve\n[[profiles]]\nmodel = \"profile-model\" # key comment\n",
 			path: []string{"model"},

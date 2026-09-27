@@ -220,6 +220,7 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 	}
 	quoted := quoteTOML(value)
 	lines := splitKeep(src)
+	starts := tomlStatementStarts(lines)
 	table := path[:len(path)-1]
 	key := path[len(path)-1]
 	wantHeader := tomlHeader(table)
@@ -228,6 +229,9 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 	found := false
 	headerLine := -1
 	for i, line := range lines {
+		if !starts[i] {
+			continue
+		}
 		trim := strings.TrimSpace(line)
 		if trim == "" || strings.HasPrefix(trim, "#") {
 			continue
@@ -259,6 +263,9 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 		// append before first table
 		insertAt := len(lines)
 		for i, line := range lines {
+			if !starts[i] {
+				continue
+			}
 			if _, ok := tomlTableScope(line); ok {
 				insertAt = i
 				break
@@ -271,8 +278,10 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 		// insert after header (and any following blanks/comments/keys — at end of table)
 		end := headerLine + 1
 		for end < len(lines) {
-			if _, ok := tomlTableScope(lines[end]); ok {
-				break
+			if starts[end] {
+				if _, ok := tomlTableScope(lines[end]); ok {
+					break
+				}
 			}
 			end++
 		}
@@ -285,6 +294,55 @@ func SetTOML(src []byte, path []string, value string) ([]byte, error) {
 	}
 	lines = append(lines, "["+wantHeader+"]", newline)
 	return joinTOML(lines), nil
+}
+
+// tomlStatementStarts excludes continuation lines of arrays and multiline
+// strings. Header-shaped text and assignments inside those values are data.
+func tomlStatementStarts(lines []string) []bool {
+	starts := make([]bool, len(lines))
+	var quote byte
+	multiline := false
+	depth := 0
+	for n, line := range lines {
+		starts[n] = quote == 0 && depth == 0
+		for i := 0; i < len(line); i++ {
+			c := line[i]
+			if quote != 0 {
+				if quote == '"' && c == '\\' {
+					i++
+				} else if c == quote {
+					if !multiline {
+						quote = 0
+					} else if i+2 < len(line) && line[i+1] == quote && line[i+2] == quote {
+						i += 2
+						// Four or five closing quotes include one or two literal quotes.
+						for i+1 < len(line) && line[i+1] == quote {
+							i++
+						}
+						quote = 0
+						multiline = false
+					}
+				}
+				continue
+			}
+			if c == '#' {
+				break
+			}
+			switch c {
+			case '"', '\'':
+				quote = c
+				multiline = i+2 < len(line) && line[i+1] == c && line[i+2] == c
+				if multiline {
+					i += 2
+				}
+			case '[', '{':
+				depth++
+			case ']', '}':
+				depth--
+			}
+		}
+	}
+	return starts
 }
 
 // tomlTableScope ignores trailing comments outside quoted header keys.
