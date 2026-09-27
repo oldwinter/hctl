@@ -146,7 +146,7 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 						SrcHome:   srcHome,
 						DstFS:     dstFS,
 						DstHome:   dstHome,
-						Provider:  d.Provider,
+						Desired:   d,
 						DryRun:    dryRun,
 						BackupDir: mutate.DefaultBackupDir(opts.configPath),
 						Ownership: opts.ownershipOptions(),

@@ -67,6 +67,7 @@ func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	}
 	if snap.Provider == "" {
 		snap.Provider = "openai"
+		snap.ProviderImplicit = true
 	}
 	return snap, nil
 }
@@ -85,18 +86,17 @@ func applyProvider(snap *model.Snapshot, p provider) {
 }
 
 func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) error {
-	if d.Provider == "" {
+	if d.Provider == "" && d.SecretRef == "" {
 		return nil
 	}
-	data, err := fsx.ReadMaybe(fsys, fsys.Join(home, ".codex", "config.toml"))
-	if err != nil || len(data) == 0 {
+	cfg, err := readCodexFile(fsys, home)
+	if err != nil {
 		return err
 	}
-	var cfg file
-	if err := toml.Unmarshal(data, &cfg); err != nil {
-		return exitcode.Errorf(exitcode.Parse, "codex config.toml is invalid")
+	if d.SecretRef != "" && d.Provider == "" && cfg.ModelProvider == "" {
+		return exitcode.Errorf(exitcode.Usage, "codex secretRef requires a selected model_provider (set provider first)")
 	}
-	if len(cfg.ModelProviders) == 0 {
+	if d.Provider == "" || len(cfg.ModelProviders) == 0 {
 		return nil
 	}
 	if _, ok := cfg.ModelProviders[d.Provider]; ok {
@@ -108,6 +108,18 @@ func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) erro
 	}
 	sort.Strings(names)
 	return exitcode.Errorf(exitcode.Usage, "codex provider %q is not in model_providers; have %s", d.Provider, strings.Join(names, ", "))
+}
+
+func readCodexFile(fsys fsx.FS, home string) (file, error) {
+	data, err := fsx.ReadMaybe(fsys, fsys.Join(home, ".codex", "config.toml"))
+	if err != nil || len(data) == 0 {
+		return file{}, err
+	}
+	var cfg file
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return file{}, exitcode.Errorf(exitcode.Parse, "codex config.toml is invalid")
+	}
+	return cfg, nil
 }
 
 func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]string, error) {
@@ -134,11 +146,12 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 	if d.SecretRef != "" {
 		prov := d.Provider
 		if prov == "" {
-			snap, _ := a.Read(fsys, home)
-			prov = snap.Provider
+			var cfg file
+			_ = toml.Unmarshal(data, &cfg)
+			prov = cfg.ModelProvider
 		}
 		if prov == "" {
-			prov = "custom"
+			return nil, exitcode.Errorf(exitcode.Usage, "codex secretRef requires a selected model_provider (set provider first)")
 		}
 		data, err = edit.SetTOML(data, []string{"model_providers", prov, "env_key"}, d.SecretRef)
 		if err != nil {
@@ -168,17 +181,32 @@ func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err er
 	return p.EnvKey, p.ExperimentalBearerToken, nil
 }
 
+func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home string, d model.Desired) error {
+	if d.Provider != "" {
+		return nil
+	}
+	cfg, err := readCodexFile(fsys, home)
+	if err != nil {
+		return err
+	}
+	if cfg.ModelProvider == "" {
+		return exitcode.Errorf(exitcode.Usage, "codex secret copy requires a selected model_provider (set provider first)")
+	}
+	return nil
+}
+
 func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
+	if err := a.ValidateSecretWrite(fsys, home, model.Desired{}); err != nil {
+		return err
+	}
 	path := fsys.Join(home, ".codex", "config.toml")
 	data, err := fsx.ReadMaybe(fsys, path)
 	if err != nil {
 		return err
 	}
-	snap, _ := a.Read(fsys, home)
-	prov := snap.Provider
-	if prov == "" || prov == "openai" {
-		prov = "custom"
-	}
+	var cfg file
+	_ = toml.Unmarshal(data, &cfg)
+	prov := cfg.ModelProvider
 	if value != "" {
 		data, err = edit.SetTOML(data, []string{"model_providers", prov, "experimental_bearer_token"}, value)
 		if err != nil {

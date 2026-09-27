@@ -66,3 +66,81 @@ func TestWriteModelRejectsOrphanWhenNoTableToCopy(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 }
+
+func writeGrokConfig(t *testing.T, home, data string) string {
+	t.Helper()
+	path := filepath.Join(home, ".grok", "config.toml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestSecretWritesFailClosedWithoutSelectedModel(t *testing.T) {
+	home := t.TempDir()
+	path := writeGrokConfig(t, home, `[model."grok-4.5"]
+model = "grok-4.5"
+base_url = "https://api.x.ai/v1"
+`)
+	before, _ := os.ReadFile(path)
+
+	if _, err := (Adapter{}).WriteFields(fsx.Local{}, home, model.Desired{SecretRef: "XAI_KEY"}); err == nil || exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("secretRef write err=%v", err)
+	}
+	if err := (Adapter{}).WriteSecret(fsx.Local{}, home, "XAI_KEY", "sk-test-bbb"); err == nil || exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("bearer write err=%v", err)
+	}
+	if err := (Adapter{}).ValidateSecretWrite(fsx.Local{}, home, model.Desired{}); err == nil || exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("validate err=%v", err)
+	}
+	if err := (Adapter{}).ValidateSecretWrite(fsx.Local{}, home, model.Desired{Model: "grok-4.6"}); err != nil {
+		t.Fatalf("pending model should satisfy the selector: %v", err)
+	}
+	after, _ := os.ReadFile(path)
+	if string(before) != string(after) {
+		t.Fatalf("selector-less write mutated config:\n%s", after)
+	}
+}
+
+func TestSecretWritesTargetSelectedModel(t *testing.T) {
+	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
+	path := filepath.Join(home, ".grok", "config.toml")
+	if _, err := (Adapter{}).WriteFields(fsx.Local{}, home, model.Desired{SecretRef: "XAI_KEY"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := (Adapter{}).WriteSecret(fsx.Local{}, home, "", "sk-test-bbb"); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := (Adapter{}).Read(fsx.Local{}, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.SecretRef != "XAI_KEY" || snap.SecretFingerprint != secret.Fingerprint("sk-test-bbb") {
+		t.Fatalf("snapshot=%+v", snap)
+	}
+	data, _ := os.ReadFile(path)
+	if strings.Contains(string(data), "[model.default]") {
+		t.Fatalf("wrote a dead default section:\n%s", data)
+	}
+}
+
+func TestSecretRefWriteWithPendingModel(t *testing.T) {
+	home := t.TempDir()
+	writeGrokConfig(t, home, `[model."grok-4.6"]
+model = "grok-4.6"
+base_url = "https://api.x.ai/v1"
+`)
+	if _, err := (Adapter{}).WriteFields(fsx.Local{}, home, model.Desired{Model: "grok-4.6", SecretRef: "XAI_KEY"}); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := (Adapter{}).Read(fsx.Local{}, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.DefaultModel != "grok-4.6" || snap.SecretRef != "XAI_KEY" {
+		t.Fatalf("snapshot=%+v", snap)
+	}
+}
