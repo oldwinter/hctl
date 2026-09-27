@@ -10,6 +10,7 @@ import (
 	"github.com/oldwinter/hctl/internal/adapters/claude"
 	"github.com/oldwinter/hctl/internal/adapters/codex"
 	"github.com/oldwinter/hctl/internal/adapters/grok"
+	"github.com/oldwinter/hctl/internal/adapters/hermes"
 	"github.com/oldwinter/hctl/internal/adapters/pi"
 	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/fsx"
@@ -188,6 +189,64 @@ func TestApplyClaudeBacksUpOnlyWrittenSettings(t *testing.T) {
 		if strings.Contains(p, ".claude.json") {
 			t.Fatalf("backed up unchanged onboarding file: %v", rep.Backups)
 		}
+	}
+}
+
+func TestSecretRefOnlyCopyHermesWritesKeyEnv(t *testing.T) {
+	writeHermes := func(home, config string) {
+		t.Helper()
+		path := filepath.Join(home, ".hermes", "config.yaml")
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(config), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	src := t.TempDir()
+	dst := t.TempDir()
+	writeHermes(src, `model:
+  default: anthropic/claude-opus-4.6
+  provider: custom
+providers:
+  custom:
+    base_url: https://openrouter.ai/api/v1
+    key_env: MY_HERMES_KEY
+`)
+	writeHermes(dst, `model:
+  default: anthropic/claude-opus-4.6
+  provider: custom
+providers:
+  custom:
+    base_url: https://openrouter.ai/api/v1
+`)
+	plan, err := PreflightSecret(SecretRequest{
+		Adapter:   hermes.Adapter{},
+		SrcFS:     fsx.Local{},
+		SrcHome:   src,
+		DstFS:     fsx.Local{},
+		DstHome:   dst,
+		BackupDir: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cp, err := ApplyPreparedSecret(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cp.Action != "secret-ref" || !cp.Copied {
+		t.Fatalf("copy = %#v", cp)
+	}
+	data, err := os.ReadFile(filepath.Join(dst, ".hermes", "config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "key_env: MY_HERMES_KEY") {
+		t.Fatalf("dst config: %s", data)
+	}
+	if _, err := os.Stat(filepath.Join(dst, ".hermes", ".env")); !os.IsNotExist(err) {
+		t.Fatalf("ref-only copy must not create .env: %v", err)
 	}
 }
 

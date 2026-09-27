@@ -231,6 +231,37 @@ providers:
 	}
 }
 
+func TestWriteSecretRefOnlySetsKeyEnv(t *testing.T) {
+	home := t.TempDir()
+	writeConfig(t, home, `model:
+  default: anthropic/claude-opus-4.6
+  provider: custom
+providers:
+  custom:
+    base_url: https://openrouter.ai/api/v1
+`)
+	if err := (Adapter{}).WriteSecret(fsx.Local{}, home, "MY_HERMES_KEY", ""); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".hermes", "config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "key_env: MY_HERMES_KEY") {
+		t.Fatalf("config: %s", data)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".hermes", ".env")); !os.IsNotExist(err) {
+		t.Fatalf("ref-only write must not create .env: %v", err)
+	}
+	snap, err := (Adapter{}).Read(fsx.Local{}, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.SecretRef != "MY_HERMES_KEY" {
+		t.Fatalf("ref = %q", snap.SecretRef)
+	}
+}
+
 func TestValidateDesiredRejectsBaseURLForMissingProvider(t *testing.T) {
 	home := t.TempDir()
 	writeConfig(t, home, `model:

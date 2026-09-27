@@ -394,6 +394,27 @@ func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
 	if err := a.ValidateSecretWrite(fsys, home, ""); err != nil {
 		return err
 	}
+	if value == "" {
+		if ref == "" {
+			return nil
+		}
+		cfgPath := fsys.Join(home, ".hermes", "config.yaml")
+		data, err := fsx.ReadMaybe(fsys, cfgPath)
+		if err != nil {
+			return err
+		}
+		snap, _ := a.Read(fsys, home)
+		prov := snap.Provider
+		if prov == "" || prov == "auto" {
+			prov = "custom"
+		}
+		prov = strings.TrimPrefix(prov, "custom:")
+		data, err = edit.SetYAML(data, []string{"providers", prov, "key_env"}, ref)
+		if err != nil {
+			return err
+		}
+		return fsx.AtomicWrite(fsys, cfgPath, data, 0o600)
+	}
 	envPath := fsys.Join(home, ".hermes", ".env")
 	data, err := fsx.ReadMaybe(fsys, envPath)
 	if err != nil {
@@ -403,11 +424,9 @@ func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
 	if key == "" {
 		key = "HERMES_API_KEY"
 	}
-	if value != "" {
-		data, err = edit.SetDotEnv(data, key, value)
-		if err != nil {
-			return err
-		}
+	data, err = edit.SetDotEnv(data, key, value)
+	if err != nil {
+		return err
 	}
 	return fsx.AtomicWrite(fsys, envPath, data, 0o600)
 }
