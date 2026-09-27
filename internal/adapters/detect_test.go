@@ -22,7 +22,7 @@ func TestDetectBinaryFSUsesRemoteCommandV(t *testing.T) {
 			if name != "ssh" {
 				t.Fatalf("name=%s", name)
 			}
-			script := args[len(args)-1]
+			script := testutil.SSHRemoteCommand(t, args)
 			if strings.Contains(script, "command -v") && strings.Contains(script, "codex") {
 				return []byte("/usr/bin/codex\n"), nil
 			}
@@ -50,7 +50,7 @@ func TestReadOneInstalledUsesRemoteLookPath(t *testing.T) {
 	fsys := fsx.SSH{
 		Target: "user@box",
 		Run: func(stdin []byte, name string, args ...string) ([]byte, error) {
-			script := args[len(args)-1]
+			script := testutil.SSHRemoteCommand(t, args)
 			if strings.Contains(script, "command -v") {
 				called = true
 				if strings.Contains(script, "codex") {

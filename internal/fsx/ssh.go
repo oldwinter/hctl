@@ -36,7 +36,9 @@ func (s SSH) args(remoteCmd string) []string {
 	if s.Identity != "" {
 		out = append(out, "-i", s.Identity)
 	}
-	out = append(out, s.Target, "--", "sh", "-c", remoteCmd)
+	// OpenSSH joins command arguments with spaces, so send the remote
+	// command as a single shell-quoted string.
+	out = append(out, s.Target, "sh -c "+shq(remoteCmd))
 	return out
 }
 
