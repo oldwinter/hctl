@@ -56,6 +56,19 @@ func TestMissingConfig(t *testing.T) {
 	}
 }
 
+func TestReadMarksProviderImplicitWithoutSelector(t *testing.T) {
+	home := t.TempDir()
+	writeCodexConfig(t, home, `model = "o4-mini"
+`)
+	snap, err := Adapter{}.Read(fsx.Local{}, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.Provider != "openai" || !snap.ProviderImplicit {
+		t.Fatalf("selector-less config should report implicit openai: %+v", snap)
+	}
+}
+
 func writeCodexConfig(t *testing.T, home, data string) string {
 	t.Helper()
 	path := filepath.Join(home, ".codex", "config.toml")

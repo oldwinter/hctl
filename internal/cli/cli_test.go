@@ -642,6 +642,97 @@ base_url = "https://api.x.ai/v1"
 			t.Fatalf("wrote a dead default section:\n%s", data)
 		}
 	})
+
+	t.Run("codex implicit openai provider", func(t *testing.T) {
+		src, dst := t.TempDir(), t.TempDir()
+		writeTestFile(t, filepath.Join(src, ".codex", "config.toml"), `model = "fixture-model"
+model_provider = "openai"
+
+[model_providers.openai]
+name = "OpenAI"
+experimental_bearer_token = "sk-test-aaa"
+`)
+		writeTestFile(t, filepath.Join(dst, ".codex", "config.toml"), `model = "fixture-model"
+`)
+		backupDir := t.TempDir()
+		t.Setenv("HARNESSCTL_BACKUP_DIR", backupDir)
+		configPath := writeLocalContexts(t, src, dst)
+		dstPath := filepath.Join(dst, ".codex", "config.toml")
+
+		out, err := run(t, "--no-probe", "--config", configPath, "sync", "--from", "source", "--to", "destination", "--harness", "codex", "--fields", "provider,secret", "--dry-run")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(out, "sk-test") {
+			t.Fatal(out)
+		}
+		if !strings.Contains(out, "provider") || !strings.Contains(out, "openai") {
+			t.Fatalf("dry-run must announce the pending selector write:\n%s", out)
+		}
+		data, _ := os.ReadFile(dstPath)
+		if strings.Contains(string(data), "model_provider") {
+			t.Fatalf("dry-run wrote the selector:\n%s", data)
+		}
+		assertDirectoryEmpty(t, backupDir)
+
+		out, err = run(t, "--no-probe", "--config", configPath, "sync", "--from", "source", "--to", "destination", "--harness", "codex", "--fields", "provider,secret")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(out, "sk-test") {
+			t.Fatal(out)
+		}
+		data, _ = os.ReadFile(dstPath)
+		if !strings.Contains(string(data), `model_provider = "openai"`) {
+			t.Fatalf("implicit selector not materialized:\n%s", data)
+		}
+		if !strings.Contains(string(data), "[model_providers.openai]") {
+			t.Fatalf("bearer should land under model_providers.openai:\n%s", data)
+		}
+	})
+
+	t.Run("batch writes codex selector before secret", func(t *testing.T) {
+		src, dst := t.TempDir(), t.TempDir()
+		writeTestFile(t, filepath.Join(src, ".codex", "config.toml"), `model = "fixture-model"
+model_provider = "openai"
+
+[model_providers.openai]
+name = "OpenAI"
+experimental_bearer_token = "sk-test-aaa"
+`)
+		writeTestFile(t, filepath.Join(dst, ".codex", "config.toml"), `model = "fixture-model"
+`)
+		writeTestFile(t, filepath.Join(src, ".grok", "config.toml"), `[models]
+default = "grok-4.6"
+
+[model."grok-4.6"]
+model = "grok-4.6"
+base_url = "https://api.x.ai/v1"
+api_key = "sk-test-aaa"
+`)
+		writeTestFile(t, filepath.Join(dst, ".grok", "config.toml"), `[model."grok-4.6"]
+model = "grok-4.6"
+base_url = "https://api.x.ai/v1"
+`)
+		t.Setenv("HARNESSCTL_BACKUP_DIR", t.TempDir())
+		configPath := writeLocalContexts(t, src, dst)
+
+		out, err := run(t, "--no-probe", "--config", configPath, "sync", "--from", "source", "--to", "destination", "--harness", "grok,codex", "--fields", "model,provider,secret")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(out, "sk-test") {
+			t.Fatal(out)
+		}
+		codexData, _ := os.ReadFile(filepath.Join(dst, ".codex", "config.toml"))
+		if !strings.Contains(string(codexData), `model_provider = "openai"`) || !strings.Contains(string(codexData), "[model_providers.openai]") {
+			t.Fatalf("codex selector+bearer not applied in batch:\n%s", codexData)
+		}
+		grokData, _ := os.ReadFile(filepath.Join(dst, ".grok", "config.toml"))
+		if !strings.Contains(string(grokData), `default = "grok-4.6"`) || !strings.Contains(string(grokData), `api_key = "sk-test-aaa"`) {
+			t.Fatalf("grok selector+key not applied in batch:\n%s", grokData)
+		}
+	})
 }
 
 func writeLocalContexts(t *testing.T, source, destination string) string {

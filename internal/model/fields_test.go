@@ -17,6 +17,21 @@ func TestChangesFromDesired(t *testing.T) {
 	}
 }
 
+func TestChangesFromDesiredMaterializesImplicitProvider(t *testing.T) {
+	snap := Snapshot{Name: "codex", Provider: "openai", ProviderImplicit: true}
+	ch := ChangesFromDesired("codex", snap, Desired{Provider: "openai"})
+	if len(ch) != 1 || ch[0].Field != "provider" || ch[0].From != "" || ch[0].To != "openai" {
+		t.Fatalf("implicit provider should produce a materializing change: %#v", ch)
+	}
+	snap.ProviderImplicit = false
+	if ch := ChangesFromDesired("codex", snap, Desired{Provider: "openai"}); len(ch) != 0 {
+		t.Fatalf("persisted provider should produce no change: %#v", ch)
+	}
+	if ch := ChangesFromDesired("codex", snap, Desired{}); len(ch) != 0 {
+		t.Fatalf("empty desired should produce no change: %#v", ch)
+	}
+}
+
 func TestDesiredEmptyUsesFieldTable(t *testing.T) {
 	if !(Desired{}).Empty() {
 		t.Fatal("zero desired should be empty")

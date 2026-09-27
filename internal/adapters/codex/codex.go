@@ -67,6 +67,7 @@ func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 	}
 	if snap.Provider == "" {
 		snap.Provider = "openai"
+		snap.ProviderImplicit = true
 	}
 	return snap, nil
 }

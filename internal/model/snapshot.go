@@ -25,6 +25,11 @@ type Snapshot struct {
 	SecretRef         string            `json:"secretRef,omitempty"`
 	Notes             []string          `json:"notes,omitempty"`
 	ParseError        string            `json:"parseError,omitempty"`
+	// ProviderImplicit marks a provider that is only the harness's built-in
+	// default, not a selector persisted in config (e.g. codex without
+	// model_provider). Desired-state compares treat it as unset so a matching
+	// desired provider still writes the selector.
+	ProviderImplicit bool `json:"providerImplicit,omitempty"`
 }
 
 // String is a one-line inventory summary. It must never include raw keys.

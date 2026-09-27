@@ -72,6 +72,11 @@ func ChangesFromDesired(harness string, snap Snapshot, d Desired) []Change {
 			continue
 		}
 		got := f.current(snap)
+		// An implicit provider is a display default, not a persisted
+		// selector; an equal desired value still needs the write.
+		if f.name == "provider" && snap.ProviderImplicit && want == got {
+			got = ""
+		}
 		if f.equal != nil {
 			if f.equal(want, got) {
 				continue
