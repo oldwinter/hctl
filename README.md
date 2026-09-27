@@ -106,7 +106,7 @@ contexts:
       identityFile: /Users/you/.ssh/id_ed25519
 ```
 
-SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`，整段命令 10s 超时。远程读写用 `cat` / `mv`；`doctor` 用远程 `command -v` 判断是否安装（不远程跑 `--version`）。备份仍落在**本机**（见上面的备份目录规则）。
+SSH 走本机 `ssh`：`BatchMode=yes`、`ConnectTimeout=8`，整段命令 10s 超时。远程读写用 `cat` / `mv`，独占临时文件用 POSIX `link` 发布（Linux/macOS 均提供，目标已存在时拒绝）；`doctor` 用远程 `command -v` 判断是否安装（不远程跑 `--version`）。备份仍落在**本机**（见上面的备份目录规则）。
 
 ## 命令矩阵
 

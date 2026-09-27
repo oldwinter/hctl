@@ -1,6 +1,7 @@
 package fsx
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -18,6 +19,11 @@ import (
 type FS interface {
 	ReadFile(name string) ([]byte, error)
 	WriteFile(name string, data []byte, perm os.FileMode) error
+	// WriteNewFile creates name exclusively and fails with fs.ErrExist when
+	// the name is taken — including entries planted after any preliminary
+	// check. It never follows a planted symlink. On failure it removes
+	// whatever it created, so name is never the caller's to clean up.
+	WriteNewFile(name string, data []byte, perm os.FileMode) error
 	Stat(name string) (os.FileInfo, error)
 	MkdirAll(name string, perm os.FileMode) error
 	Rename(oldpath, newpath string) error
@@ -32,6 +38,22 @@ type Local struct{}
 func (Local) ReadFile(name string) ([]byte, error) { return os.ReadFile(name) }
 func (Local) WriteFile(name string, data []byte, perm os.FileMode) error {
 	return os.WriteFile(name, data, perm)
+}
+func (Local) WriteNewFile(name string, data []byte, perm os.FileMode) error {
+	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		_ = os.Remove(name)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(name)
+		return err
+	}
+	return nil
 }
 func (Local) Stat(name string) (os.FileInfo, error) { return os.Stat(name) }
 func (Local) MkdirAll(name string, perm os.FileMode) error {
@@ -94,13 +116,26 @@ func ExistsAny(fsys FS, name string) bool {
 	return err == nil
 }
 
-// AtomicWrite writes via a sibling temp file then rename.
+// AtomicWrite writes via a uniquely reserved sibling temp file then rename.
+// WriteNewFile owns cleanup of failed reservations — it reports collisions as
+// fs.ErrExist so they are retried — so a failed WriteNewFile never implies
+// AtomicWrite may remove tmp; only a successful reservation is ours to remove.
 func AtomicWrite(fsys FS, name string, data []byte, perm os.FileMode) error {
 	if err := fsys.MkdirAll(dirOf(fsys, name), 0o700); err != nil {
 		return err
 	}
-	tmp := name + ".harnessctl-tmp"
-	if err := fsys.WriteFile(tmp, data, perm); err != nil {
+	var tmp string
+	var err error
+	for range 5 {
+		tmp = name + ".harnessctl-tmp." + randSuffix()
+		if err = fsys.WriteNewFile(tmp, data, perm); err == nil {
+			break
+		}
+		if !errors.Is(err, fs.ErrExist) {
+			return err
+		}
+	}
+	if err != nil {
 		return err
 	}
 	if err := fsys.Rename(tmp, name); err != nil {
@@ -108,6 +143,14 @@ func AtomicWrite(fsys FS, name string, data []byte, perm os.FileMode) error {
 		return err
 	}
 	return nil
+}
+
+func randSuffix() string {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b[:])
 }
 
 // BackupLocal copies src bytes into a uniquely reserved local file (0600).
