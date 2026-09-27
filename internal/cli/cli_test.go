@@ -9,7 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/oldwinter/hctl/internal/adapters/hermes"
 	"github.com/oldwinter/hctl/internal/exitcode"
+	"github.com/oldwinter/hctl/internal/fsx"
+	"github.com/oldwinter/hctl/internal/model"
 	"github.com/oldwinter/hctl/internal/testutil"
 )
 
@@ -285,6 +288,127 @@ func TestApplyAndDiffDesired(t *testing.T) {
 	}
 	if strings.Contains(out, "sk-test") {
 		t.Fatal("leaked")
+	}
+}
+
+func TestEndpointDesiredDiffAndApply(t *testing.T) {
+	home := t.TempDir()
+	before := "https://user:sk-test-aaa@gateway.example/old/v1?token=sk-test-aaa"
+	want := "https://user:sk-test-bbb@gateway.example/new/v1?token=sk-test-bbb"
+	writeHermesEndpoint(t, home, before)
+	desired := filepath.Join(t.TempDir(), "desired.toml")
+	writeTestFile(t, desired, fmt.Sprintf("[harnesses.hermes]\nbaseUrl = %q\n", want))
+	t.Setenv("HARNESSCTL_BACKUP_DIR", t.TempDir())
+	base := []string{"--home", home, "--config", testutil.Testdata(t, "harnessctl.yaml"), "--json"}
+	for _, args := range [][]string{{"diff", "-f", desired}, {"apply", "-f", desired, "--dry-run"}} {
+		out, err := run(t, append(base, args...)...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var rep model.ApplyReport
+		if err := json.Unmarshal([]byte(out), &rep); err != nil {
+			t.Fatal(err)
+		}
+		if len(rep.Changes) != 1 || rep.Changes[0].Field != "baseUrl" || rep.Changes[0].From != "gateway.example" || rep.Changes[0].To != "gateway.example" || rep.Verified {
+			t.Fatal("expected one redacted endpoint change without verification")
+		}
+		assertHermesEndpoint(t, home, before)
+	}
+	out, err := run(t, append(base, "apply", "-f", desired)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rep model.ApplyReport
+	if err := json.Unmarshal([]byte(out), &rep); err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Changes) != 1 || !rep.Verified {
+		t.Fatal("apply did not update and verify the endpoint")
+	}
+	assertHermesEndpoint(t, home, want)
+	for _, args := range [][]string{{"diff", "-f", desired}, {"apply", "-f", desired, "--dry-run"}, {"apply", "-f", desired}} {
+		out, err := run(t, append(base, args...)...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var rep model.ApplyReport
+		if err := json.Unmarshal([]byte(out), &rep); err != nil {
+			t.Fatal(err)
+		}
+		if len(rep.Changes) != 0 || len(rep.Backups) != 0 || rep.Verified {
+			t.Fatal("unchanged endpoint should produce no changes or backups")
+		}
+	}
+	for _, args := range [][]string{{"get", "harnesses"}, {"describe", "harness", "hermes"}} {
+		out, err := run(t, append(base, args...)...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(out, "gateway.example") || strings.Contains(out, "sk-test") || strings.Contains(out, "user:") || strings.Contains(out, "/new/v1") {
+			t.Fatal("inventory must expose only the endpoint host")
+		}
+	}
+}
+
+func TestSyncBaseURLOnSameHost(t *testing.T) {
+	for _, tc := range []struct{ name, before, want string }{
+		{"path", "https://gateway.example/old/v1", "https://user:sk-test-aaa@gateway.example/new/v1?token=sk-test-bbb"},
+		{"scheme", "http://gateway.example/v1", "https://gateway.example/v1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src, dst := t.TempDir(), t.TempDir()
+			writeHermesEndpoint(t, src, tc.want)
+			writeHermesEndpoint(t, dst, tc.before)
+			cfg := writeLocalContexts(t, src, dst)
+			t.Setenv("HARNESSCTL_BACKUP_DIR", t.TempDir())
+			for _, step := range []struct {
+				dryRun   bool
+				changes  int
+				endpoint string
+			}{
+				{true, 1, tc.before},
+				{false, 1, tc.want},
+				{false, 0, tc.want},
+			} {
+				args := []string{"--config", cfg, "--json", "sync", "--from", "source", "--to", "destination", "--harness", "hermes", "--fields", "base-url"}
+				if step.dryRun {
+					args = append(args, "--dry-run")
+				}
+				out, err := run(t, args...)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(out, "sk-test") || strings.Contains(out, "user:") || strings.Contains(out, "/new/v1") {
+					t.Fatal("sync report exposed a full endpoint")
+				}
+				var rep model.ApplyReport
+				if err := json.Unmarshal([]byte(out), &rep); err != nil {
+					t.Fatal(err)
+				}
+				if len(rep.Changes) != step.changes || rep.Verified != (!step.dryRun && step.changes > 0) {
+					t.Fatalf("sync report = %#v", rep)
+				}
+				assertHermesEndpoint(t, dst, step.endpoint)
+				assertHermesEndpoint(t, src, tc.want)
+			}
+		})
+	}
+}
+
+func writeHermesEndpoint(t *testing.T, home, endpoint string) {
+	t.Helper()
+	writeTestFile(t, filepath.Join(home, ".hermes", "config.yaml"),
+		"model:\n  provider: custom:gateway\nproviders:\n  gateway:\n    base_url: "+endpoint+"\n")
+}
+
+func assertHermesEndpoint(t *testing.T, home, want string) {
+	t.Helper()
+	got, err := (hermes.Adapter{}).ReadEndpoint(fsx.Local{}, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatal("full endpoint does not match expected value")
 	}
 }
 
