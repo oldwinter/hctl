@@ -53,6 +53,37 @@ func TestHasCommentsOrTrailingCommas(t *testing.T) {
 	}
 }
 
+func TestStripTrailingCommaBeforeComment(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{"line comment", "{\"a\": 1, // c\n}"},
+		{"block comment", `{"a": 1, /* c */ }`},
+		{"stacked line comments", "{\"a\": 1, // a\n // b\n}"},
+		{"array", "[1, 2, // c\n]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var v any
+			if err := Unmarshal([]byte(tc.in), &v); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestCommaBeforeCommentAndValueSurvives(t *testing.T) {
+	in := []byte("{\"a\": 1, // c\n \"b\": 2}")
+	var v map[string]any
+	if err := Unmarshal(in, &v); err != nil {
+		t.Fatal(err)
+	}
+	if v["b"].(float64) != 2 {
+		t.Fatalf("%#v", v)
+	}
+}
+
 func TestBlockComment(t *testing.T) {
 	in := []byte(`{"a": 1, /* skip */ "b": 2}`)
 	var v map[string]any

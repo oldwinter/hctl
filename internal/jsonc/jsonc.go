@@ -81,8 +81,29 @@ func Strip(in []byte) ([]byte, error) {
 			}
 			if c == ',' {
 				j := i + 1
-				for j < len(in) && unicode.IsSpace(rune(in[j])) {
-					j++
+				for j < len(in) {
+					if unicode.IsSpace(rune(in[j])) {
+						j++
+						continue
+					}
+					if in[j] == '/' && j+1 < len(in) && in[j+1] == '/' {
+						for j < len(in) && in[j] != '\n' {
+							j++
+						}
+						continue
+					}
+					if in[j] == '/' && j+1 < len(in) && in[j+1] == '*' {
+						j += 2
+						for j+1 < len(in) && (in[j] != '*' || in[j+1] != '/') {
+							j++
+						}
+						if j+1 >= len(in) {
+							return nil, fmt.Errorf("jsonc: unterminated block comment")
+						}
+						j += 2
+						continue
+					}
+					break
 				}
 				if j < len(in) && (in[j] == '}' || in[j] == ']') {
 					continue
