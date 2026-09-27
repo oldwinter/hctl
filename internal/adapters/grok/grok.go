@@ -121,12 +121,18 @@ func (a Adapter) ValidateDesired(fsys fsx.FS, home string, d model.Desired) erro
 	if d.Provider != "" {
 		return exitcode.Errorf(exitcode.Usage, "set provider is unsupported for grok (inferred from base_url); use set model")
 	}
-	if d.Model == "" {
+	if d.Model == "" && d.SecretRef == "" {
 		return nil
 	}
 	cfg, err := readGrokFile(fsys, home)
 	if err != nil {
 		return err
+	}
+	if d.SecretRef != "" && d.Model == "" && stringFromMap(cfg.Models, "default") == "" {
+		return exitcode.Errorf(exitcode.Usage, "grok secretRef requires a selected model (models.default)")
+	}
+	if d.Model == "" {
+		return nil
 	}
 	if cfg.Model != nil {
 		if _, ok := cfg.Model[d.Model]; ok {
@@ -196,13 +202,14 @@ func (a Adapter) WriteFields(fsys fsx.FS, home string, d model.Desired) ([]strin
 		}
 	}
 	if d.SecretRef != "" {
-		snap, _ := a.Read(fsys, home)
 		name := d.Model
 		if name == "" {
-			name = snap.DefaultModel
+			var cfg file
+			_ = toml.Unmarshal(data, &cfg)
+			name = stringFromMap(cfg.Models, "default")
 		}
 		if name == "" {
-			name = "default"
+			return nil, exitcode.Errorf(exitcode.Usage, "grok secretRef requires a selected model (models.default)")
 		}
 		data, err = edit.SetTOML(data, []string{"model", name, "env_key"}, d.SecretRef)
 		if err != nil {
@@ -233,17 +240,32 @@ func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err er
 	return firstEnvKey(sec.EnvKey), sec.APIKey, nil
 }
 
+func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home string, d model.Desired) error {
+	if d.Model != "" {
+		return nil
+	}
+	cfg, err := readGrokFile(fsys, home)
+	if err != nil {
+		return err
+	}
+	if stringFromMap(cfg.Models, "default") == "" {
+		return exitcode.Errorf(exitcode.Usage, "grok secret copy requires a selected model (models.default)")
+	}
+	return nil
+}
+
 func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
+	if err := a.ValidateSecretWrite(fsys, home, model.Desired{}); err != nil {
+		return err
+	}
 	path := fsys.Join(home, ".grok", "config.toml")
 	data, err := fsx.ReadMaybe(fsys, path)
 	if err != nil {
 		return err
 	}
-	snap, _ := a.Read(fsys, home)
-	name := snap.DefaultModel
-	if name == "" {
-		name = "default"
-	}
+	var cfg file
+	_ = toml.Unmarshal(data, &cfg)
+	name := stringFromMap(cfg.Models, "default")
 	if value != "" {
 		data, err = edit.SetTOML(data, []string{"model", name, "api_key"}, value)
 		if err != nil {

@@ -379,8 +379,8 @@ func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err er
 	return "", "", nil
 }
 
-func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home, provider string) error {
-	cfg, providerID, activeEndpoint, err := readActiveConfig(fsys, home, provider)
+func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home string, d model.Desired) error {
+	cfg, providerID, activeEndpoint, err := readActiveConfig(fsys, home, d.Provider)
 	if err != nil {
 		return err
 	}
@@ -391,7 +391,7 @@ func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home, provider string) error {
 }
 
 func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
-	if err := a.ValidateSecretWrite(fsys, home, ""); err != nil {
+	if err := a.ValidateSecretWrite(fsys, home, model.Desired{}); err != nil {
 		return err
 	}
 	envPath := fsys.Join(home, ".hermes", ".env")

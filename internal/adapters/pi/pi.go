@@ -227,8 +227,8 @@ func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err er
 	return configSecret(models.Providers[providerID].APIKey)
 }
 
-func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home, provider string) error {
-	providerID, err := selectedProvider(fsys, home, provider)
+func (a Adapter) ValidateSecretWrite(fsys fsx.FS, home string, d model.Desired) error {
+	providerID, err := selectedProvider(fsys, home, d.Provider)
 	if err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func validateCredentialWrite(fsys fsx.FS, home, providerID string) error {
 }
 
 func (a Adapter) WriteSecret(fsys fsx.FS, home, ref, value string) error {
-	if err := a.ValidateSecretWrite(fsys, home, ""); err != nil {
+	if err := a.ValidateSecretWrite(fsys, home, model.Desired{}); err != nil {
 		return err
 	}
 	providerID, err := selectedProvider(fsys, home, "")

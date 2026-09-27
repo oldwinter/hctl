@@ -524,6 +524,126 @@ func TestSyncSecretPreflightUsesPendingPiProvider(t *testing.T) {
 	})
 }
 
+func TestSyncSecretFailsClosedWithoutSelector(t *testing.T) {
+	src, dst := t.TempDir(), t.TempDir()
+	writeTestFile(t, filepath.Join(src, ".codex", "config.toml"), `model = "gpt-5.2-codex"
+model_provider = "custom"
+
+[model_providers.custom]
+name = "Src Gateway"
+base_url = "https://api.openai.com/v1"
+env_key = "SRC_ENV"
+experimental_bearer_token = "sk-test-aaa"
+`)
+	writeTestFile(t, filepath.Join(dst, ".codex", "config.toml"), `model = "o4-mini"
+`)
+	writeTestFile(t, filepath.Join(src, ".grok", "config.toml"), `[models]
+default = "grok-4.6"
+
+[model."grok-4.6"]
+model = "grok-4.6"
+base_url = "https://api.x.ai/v1"
+api_key = "sk-test-aaa"
+env_key = "SRC_ENV"
+`)
+	writeTestFile(t, filepath.Join(dst, ".grok", "config.toml"), `[model."grok-4.5"]
+model = "grok-4.5"
+base_url = "https://api.x.ai/v1"
+`)
+	t.Setenv("HARNESSCTL_BACKUP_DIR", t.TempDir())
+	configPath := writeLocalContexts(t, src, dst)
+
+	for _, tc := range []struct {
+		harness string
+		fields  string
+		rel     string
+	}{
+		{"codex", "secret-ref", ".codex/config.toml"},
+		{"codex", "secret", ".codex/config.toml"},
+		{"grok", "secret-ref", ".grok/config.toml"},
+		{"grok", "secret", ".grok/config.toml"},
+	} {
+		path := filepath.Join(dst, tc.rel)
+		before, _ := os.ReadFile(path)
+		_, err := run(t, "--no-probe", "--config", configPath, "sync", "--from", "source", "--to", "destination", "--harness", tc.harness, "--fields", tc.fields)
+		if err == nil || exitcode.From(err) != exitcode.Usage {
+			t.Fatalf("%s --fields %s: expected usage refusal, got %v", tc.harness, tc.fields, err)
+		}
+		after, _ := os.ReadFile(path)
+		if string(before) != string(after) {
+			t.Fatalf("%s --fields %s mutated destination:\n%s", tc.harness, tc.fields, after)
+		}
+	}
+}
+
+func TestSyncSecretUsesPendingSelector(t *testing.T) {
+	t.Run("codex pending provider", func(t *testing.T) {
+		src, dst := t.TempDir(), t.TempDir()
+		writeTestFile(t, filepath.Join(src, ".codex", "config.toml"), `model = "gpt-5.2-codex"
+model_provider = "custom"
+
+[model_providers.custom]
+name = "Src Gateway"
+base_url = "https://api.openai.com/v1"
+experimental_bearer_token = "sk-test-aaa"
+`)
+		writeTestFile(t, filepath.Join(dst, ".codex", "config.toml"), `model = "o4-mini"
+
+[model_providers.custom]
+name = "Dst Gateway"
+base_url = "https://dst.example/v1"
+`)
+		t.Setenv("HARNESSCTL_BACKUP_DIR", t.TempDir())
+		configPath := writeLocalContexts(t, src, dst)
+		out, err := run(t, "--no-probe", "--config", configPath, "sync", "--from", "source", "--to", "destination", "--harness", "codex", "--fields", "provider,secret")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(out, "sk-test") {
+			t.Fatal(out)
+		}
+		data, _ := os.ReadFile(filepath.Join(dst, ".codex", "config.toml"))
+		if !strings.Contains(string(data), `model_provider = "custom"`) {
+			t.Fatalf("provider not written:\n%s", data)
+		}
+		if !strings.Contains(string(data), "[model_providers.custom]") {
+			t.Fatalf("secret should land under the pending provider:\n%s", data)
+		}
+	})
+
+	t.Run("grok pending model", func(t *testing.T) {
+		src, dst := t.TempDir(), t.TempDir()
+		writeTestFile(t, filepath.Join(src, ".grok", "config.toml"), `[models]
+default = "grok-4.6"
+
+[model."grok-4.6"]
+model = "grok-4.6"
+base_url = "https://api.x.ai/v1"
+api_key = "sk-test-aaa"
+`)
+		writeTestFile(t, filepath.Join(dst, ".grok", "config.toml"), `[model."grok-4.6"]
+model = "grok-4.6"
+base_url = "https://api.x.ai/v1"
+`)
+		t.Setenv("HARNESSCTL_BACKUP_DIR", t.TempDir())
+		configPath := writeLocalContexts(t, src, dst)
+		out, err := run(t, "--no-probe", "--config", configPath, "sync", "--from", "source", "--to", "destination", "--harness", "grok", "--fields", "model,secret")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(out, "sk-test") {
+			t.Fatal(out)
+		}
+		data, _ := os.ReadFile(filepath.Join(dst, ".grok", "config.toml"))
+		if !strings.Contains(string(data), `default = "grok-4.6"`) {
+			t.Fatalf("models.default not written:\n%s", data)
+		}
+		if strings.Contains(string(data), "[model.default]") {
+			t.Fatalf("wrote a dead default section:\n%s", data)
+		}
+	})
+}
+
 func writeLocalContexts(t *testing.T, source, destination string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "config.yaml")

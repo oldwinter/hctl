@@ -191,6 +191,78 @@ func TestApplyClaudeBacksUpOnlyWrittenSettings(t *testing.T) {
 	}
 }
 
+func TestCopySecretFailsClosedWithoutSelector(t *testing.T) {
+	src := testutil.Testdata(t, "home-a")
+	cases := []struct {
+		name    string
+		ad      adapters.Adapter
+		config  string
+		relPath []string
+	}{
+		{"codex", codex.Adapter{}, "model = \"o4-mini\"\n", []string{".codex", "config.toml"}},
+		{"grok", grok.Adapter{}, "[model.\"grok-4.5\"]\nmodel = \"grok-4.5\"\nbase_url = \"https://api.x.ai/v1\"\n", []string{".grok", "config.toml"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dst := t.TempDir()
+			path := filepath.Join(append([]string{dst}, tc.relPath...)...)
+			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(tc.config), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			out, err := CopySecret(tc.ad, fsx.Local{}, src, fsx.Local{}, dst, true)
+			if err == nil || exitcode.From(err) != exitcode.Usage {
+				t.Fatalf("expected usage refusal, got out=%+v err=%v", out, err)
+			}
+			if out.Copied {
+				t.Fatal("refused copy reported as copied")
+			}
+			after, _ := os.ReadFile(path)
+			if string(after) != tc.config {
+				t.Fatalf("refused copy mutated config:\n%s", after)
+			}
+		})
+	}
+}
+
+func TestPreflightSecretUsesPendingSelector(t *testing.T) {
+	src := testutil.Testdata(t, "home-a")
+	cases := []struct {
+		name    string
+		ad      adapters.Adapter
+		config  string
+		relPath []string
+		desired model.Desired
+	}{
+		{"codex", codex.Adapter{}, "model = \"o4-mini\"\n[model_providers.custom]\nbase_url = \"https://api.openai.com/v1\"\n", []string{".codex", "config.toml"}, model.Desired{Provider: "custom"}},
+		{"grok", grok.Adapter{}, "[model.\"grok-4.6\"]\nmodel = \"grok-4.6\"\nbase_url = \"https://api.x.ai/v1\"\n", []string{".grok", "config.toml"}, model.Desired{Model: "grok-4.6"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dst := t.TempDir()
+			path := filepath.Join(append([]string{dst}, tc.relPath...)...)
+			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(tc.config), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := PreflightSecret(SecretRequest{
+				Adapter: tc.ad,
+				SrcFS:   fsx.Local{},
+				SrcHome: src,
+				DstFS:   fsx.Local{},
+				DstHome: dst,
+				Desired: tc.desired,
+			}); err != nil {
+				t.Fatalf("pending selector should satisfy preflight: %v", err)
+			}
+		})
+	}
+}
+
 func TestPreflightRejectsParseErrorBeforeBackupOrWrite(t *testing.T) {
 	home := testutil.CopyTree(t, testutil.Testdata(t, "home-a"))
 	backupDir := t.TempDir()
