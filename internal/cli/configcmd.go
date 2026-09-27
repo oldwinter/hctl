@@ -78,29 +78,44 @@ func newConfigCmd(opts *options) *cobra.Command {
 			home, _ := cmd.Flags().GetString("home")
 			ssh, _ := cmd.Flags().GetString("ssh")
 			ident, _ := cmd.Flags().GetString("identity")
+			if kind != "" && kind != config.KindLocal && kind != config.KindSSH {
+				return exitcode.Errorf(exitcode.Usage, "unknown kind %q (want local|ssh)", kind)
+			}
 			cfg, err := opts.loadConfig()
 			if err != nil {
 				return err
 			}
-			nc := config.NamedContext{Name: args[0], Context: config.Context{
-				Kind: kind, Home: home, SSH: ssh, IdentityFile: ident,
-			}}
+			nc := config.NamedContext{Name: args[0]}
+			idx := -1
+			for i := range cfg.Contexts {
+				if cfg.Contexts[i].Name == args[0] {
+					nc.Context = cfg.Contexts[i].Context
+					idx = i
+					break
+				}
+			}
+			if cmd.Flags().Changed("kind") {
+				nc.Context.Kind = kind
+			}
+			if cmd.Flags().Changed("home") {
+				nc.Context.Home = home
+			}
+			if cmd.Flags().Changed("ssh") {
+				nc.Context.SSH = ssh
+			}
+			if cmd.Flags().Changed("identity") {
+				nc.Context.IdentityFile = ident
+			}
 			if nc.Context.Kind == "" {
-				if ssh != "" {
+				if nc.Context.SSH != "" {
 					nc.Context.Kind = config.KindSSH
 				} else {
 					nc.Context.Kind = config.KindLocal
 				}
 			}
-			found := false
-			for i := range cfg.Contexts {
-				if cfg.Contexts[i].Name == args[0] {
-					cfg.Contexts[i] = nc
-					found = true
-					break
-				}
-			}
-			if !found {
+			if idx >= 0 {
+				cfg.Contexts[idx] = nc
+			} else {
 				cfg.Contexts = append(cfg.Contexts, nc)
 			}
 			if err := config.Save(opts.configPath, cfg); err != nil {
