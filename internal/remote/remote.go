@@ -3,6 +3,7 @@ package remote
 import (
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/oldwinter/hctl/internal/config"
 	"github.com/oldwinter/hctl/internal/exitcode"
@@ -33,7 +34,8 @@ func DefaultDial(nc config.NamedContext, homeFlag string) (Target, error) {
 			ctx.Kind = config.KindLocal
 		}
 	}
-	if ctx.Kind != config.KindSSH {
+	switch ctx.Kind {
+	case config.KindLocal:
 		if ctx.Home != "" {
 			return Target{Name: nc.Name, FS: fsx.Local{}, Home: expand(ctx.Home)}, nil
 		}
@@ -42,6 +44,9 @@ func DefaultDial(nc config.NamedContext, homeFlag string) (Target, error) {
 			return Target{}, err
 		}
 		return Target{Name: nc.Name, FS: fsx.Local{}, Home: home}, nil
+	case config.KindSSH:
+	default:
+		return Target{}, exitcode.Errorf(exitcode.Usage, "context %q: unknown kind %q (want local|ssh)", nc.Name, ctx.Kind)
 	}
 	if config.Getenv("SSH") == "0" {
 		return Target{}, exitcode.Errorf(exitcode.SSH, "ssh disabled (HCTL_SSH=0 or HARNESSCTL_SSH=0)")
@@ -49,6 +54,12 @@ func DefaultDial(nc config.NamedContext, homeFlag string) (Target, error) {
 	sshTarget := ctx.Target()
 	if sshTarget == "" {
 		return Target{}, exitcode.Errorf(exitcode.SSH, "context %q: ssh target is empty", nc.Name)
+	}
+	if strings.HasPrefix(sshTarget, "-") || strings.IndexFunc(sshTarget, unicode.IsSpace) >= 0 {
+		return Target{}, exitcode.Errorf(exitcode.Usage, "context %q: unsafe ssh target %q (want [user@]host)", nc.Name, sshTarget)
+	}
+	if strings.HasPrefix(ctx.Home, "~") {
+		return Target{}, exitcode.Errorf(exitcode.Usage, "context %q: ssh home %q is not absolute (remote ~ expansion is unsupported)", nc.Name, ctx.Home)
 	}
 	s := fsx.SSH{Target: sshTarget, Identity: ctx.IdentityFile}
 	home := ctx.Home
