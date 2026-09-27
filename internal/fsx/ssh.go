@@ -116,9 +116,9 @@ func (s SSH) WriteFile(name string, data []byte, perm os.FileMode) error {
 // WriteNewFile fails with exit 17 (EEXIST) when name exists. The reservation
 // is mkdir of a sibling dir: it atomically rejects any existing entry, and the
 // payload is written inside that private dir so a path planted at name after
-// the reservation is never opened. The payload is then published with ln, a
+// the reservation is never opened. The payload is then published with the POSIX link utility, an exact-path
 // hard-link create that fails EEXIST on any entry — file, dir, symlink, or
-// FIFO — occupying name. (set -C noclobber is not an exclusive create: sh
+// FIFO — occupying name. Unlike ln, link never treats a directory as a container. (set -C noclobber is not an exclusive create: sh
 // still opens non-regular files such as FIFOs through a planted symlink.)
 func (s SSH) WriteNewFile(name string, data []byte, perm os.FileMode) error {
 	mode := fmt.Sprintf("%04o", perm&0o777)
@@ -126,7 +126,7 @@ func (s SSH) WriteNewFile(name string, data []byte, perm os.FileMode) error {
 	payload := work + "/payload"
 	_, err := s.run(data, fmt.Sprintf(`umask 077; `+
 		`if ! mkdir %s 2>/dev/null; then if [ -e %s ] || [ -L %s ]; then exit 17; fi; exit 1; fi; `+
-		`cat > %s && chmod %s %s && ln %s %s; rc=$?; `+
+		`cat > %s && chmod %s %s && link %s %s; rc=$?; `+
 		`rm -f %s; rmdir %s 2>/dev/null; `+
 		`if [ $rc -ne 0 ]; then if [ -e %s ] || [ -L %s ]; then exit 17; fi; exit 1; fi`,
 		shq(work), shq(work), shq(work),

@@ -166,7 +166,7 @@ func TestSSHWriteNewFileRejectsExisting(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "nowhere")); !os.IsNotExist(err) {
 		t.Fatalf("dangling target created: %v", err)
 	}
-	fresh := filepath.Join(root, "fresh.txt")
+	fresh := filepath.Join(root, "f'resh file.txt")
 	if err := s.WriteNewFile(fresh, []byte("new"), 0o600); err != nil {
 		t.Fatal(err)
 	}
