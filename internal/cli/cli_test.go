@@ -870,3 +870,18 @@ func TestGetContextsMissingFileNamesSetContext(t *testing.T) {
 		t.Fatalf("first-run get-contexts should name set-context:\n%s", out)
 	}
 }
+
+func TestDiffFlagValidationUsage(t *testing.T) {
+	for _, args := range [][]string{
+		{"diff", "harness", "codex", "--contexts", "a,b,c"},
+		{"diff", "harness", "codex", "--home-b", "testdata/home-b"},
+	} {
+		_, err := run(t, args...)
+		if err == nil {
+			t.Fatalf("%v: expected usage error", args)
+		}
+		if exitcode.From(err) != exitcode.Usage {
+			t.Fatalf("%v: exit = %d want %d (%v)", args, exitcode.From(err), exitcode.Usage, err)
+		}
+	}
+}

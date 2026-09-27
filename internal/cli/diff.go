@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -116,13 +115,13 @@ func resolveDiffFS(opts *options, cfg *config.File, aName, bName, contexts, home
 	if contexts != "" {
 		parts := strings.Split(contexts, ",")
 		if len(parts) != 2 {
-			return "", "", nil, "", nil, "", fmt.Errorf("--contexts wants exactly two names, got %q", contexts)
+			return "", "", nil, "", nil, "", exitcode.Errorf(exitcode.Usage, "--contexts wants exactly two names, got %q", contexts)
 		}
 		aName, bName = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
 	}
 	if homeA != "" || homeB != "" {
 		if homeA == "" || homeB == "" {
-			return "", "", nil, "", nil, "", fmt.Errorf("--home-a and --home-b must be used together")
+			return "", "", nil, "", nil, "", exitcode.Errorf(exitcode.Usage, "--home-a and --home-b must be used together")
 		}
 		la, lb := "a", "b"
 		if aName != "" {
