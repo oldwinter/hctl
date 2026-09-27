@@ -1,6 +1,8 @@
 package opencode
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -65,6 +67,32 @@ func TestReadHomeANotesJSONCCommentDrop(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("notes=%v", snap.Notes)
+	}
+}
+
+func TestPeekSecretFallsBackToSingleProvider(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".config", "opencode", "opencode.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	data := `{
+  "model": "gpt-5",
+  "provider": {
+    "acme": {
+      "options": {
+        "baseURL": "https://api.acme.example/v1",
+        "apiKey": "sk-test-aaa"
+      }
+    }
+  }
+}`
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ref, value, err := (Adapter{}).PeekSecret(fsx.Local{}, home)
+	if err != nil || ref != "" || value != "sk-test-aaa" {
+		t.Fatalf("ref=%q value=%q err=%v", ref, value, err)
 	}
 }
 
