@@ -50,6 +50,12 @@ func Parse(data []byte, ext string) (*model.DesiredFile, error) {
 	if f.Kind == "" {
 		f.Kind = "DesiredState"
 	}
+	if f.APIVersion != "harnessctl/v1" {
+		return nil, fmt.Errorf("desired apiVersion %q is unsupported (want harnessctl/v1)", f.APIVersion)
+	}
+	if f.Kind != "DesiredState" {
+		return nil, fmt.Errorf("desired kind %q is unsupported (want DesiredState)", f.Kind)
+	}
 	return &f, nil
 }
 

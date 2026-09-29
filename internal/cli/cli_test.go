@@ -879,6 +879,35 @@ contexts:
 	return path
 }
 
+func TestSyncAcceptsDesiredSecretRefFieldName(t *testing.T) {
+	src, dst := t.TempDir(), t.TempDir()
+	writeTestFile(t, filepath.Join(src, ".codex", "config.toml"), `model = "fixture-model"
+model_provider = "custom"
+
+[model_providers.custom]
+env_key = "SOURCE_KEY"
+`)
+	writeTestFile(t, filepath.Join(dst, ".codex", "config.toml"), `model = "fixture-model"
+model_provider = "custom"
+
+[model_providers.custom]
+env_key = "DESTINATION_KEY"
+`)
+	t.Setenv("HARNESSCTL_BACKUP_DIR", t.TempDir())
+	configPath := writeLocalContexts(t, src, dst)
+
+	if _, err := run(t, "--no-probe", "--config", configPath, "sync", "--from", "source", "--to", "destination", "--harness", "codex", "--fields", "secretRef"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dst, ".codex", "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `env_key = "SOURCE_KEY"`) {
+		t.Fatalf("desired field alias was accepted but ignored:\n%s", data)
+	}
+}
+
 func writePiHome(t *testing.T, home, provider, auth string) {
 	t.Helper()
 	writeTestFile(t, filepath.Join(home, ".pi", "agent", "settings.json"), fmt.Sprintf(`{"defaultProvider":%q,"defaultModel":"fixture-model"}`, provider))

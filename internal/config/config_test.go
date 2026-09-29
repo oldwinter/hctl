@@ -55,6 +55,48 @@ func TestUnknownContext(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsWrongDocumentIdentity(t *testing.T) {
+	for _, data := range []string{
+		"apiVersion: other/v1\nkind: Config\ncontexts:\n  - name: mba\n    context:\n      kind: local\n",
+		"apiVersion: harnessctl/v1\nkind: DesiredState\ncontexts:\n  - name: mba\n    context:\n      kind: local\n",
+	} {
+		path := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Load(path); err == nil {
+			t.Fatalf("accepted config with wrong identity: %q", data)
+		}
+	}
+}
+
+func TestSaveBacksUpExistingEmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	backupDir := filepath.Join(dir, "backups")
+	t.Setenv("HCTL_BACKUP_DIR", backupDir)
+	if err := Save(path, Default()); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(backupDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("backups = %d, want 1", len(entries))
+	}
+	data, err := os.ReadFile(filepath.Join(backupDir, entries[0].Name()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) != 0 {
+		t.Fatalf("backup = %q, want empty", data)
+	}
+}
+
 func TestGetenvPrefersHCTL(t *testing.T) {
 	t.Setenv("HCTL_CONFIG", "/tmp/hctl.yaml")
 	t.Setenv("HARNESSCTL_CONFIG", "/tmp/legacy.yaml")

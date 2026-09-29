@@ -42,6 +42,23 @@ func TestBackupLocalReservesUniqueSourceIdentifiedFiles(t *testing.T) {
 	}
 }
 
+func TestBackupLocalPreservesEmptySource(t *testing.T) {
+	path, err := BackupLocal(t.TempDir(), "config", "/home/fixture/.hctl/config.yaml", []byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path == "" {
+		t.Fatal("empty existing files still need a backup artifact")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) != 0 {
+		t.Fatalf("backup = %q, want empty", data)
+	}
+}
+
 func TestWithoutCommandProbesPreservesLocalAtomicWrites(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "config.json")
 	if err := AtomicWrite(WithoutCommandProbes(Local{}), path, []byte("{}\n"), 0o600); err != nil {

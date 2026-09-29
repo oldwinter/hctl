@@ -66,6 +66,12 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 				if !model.KnownSyncField(f) {
 					return exitcode.Errorf(exitcode.Usage, "unknown sync field %q", f)
 				}
+				switch f {
+				case "secretRef":
+					f = "secret-ref"
+				case "baseUrl":
+					f = "base-url"
+				}
 				fieldSet[f] = true
 			}
 			type prepared struct {

@@ -2,6 +2,7 @@ package remote
 
 import (
 	"os"
+	"path"
 	"strings"
 	"unicode"
 
@@ -58,7 +59,7 @@ func DefaultDial(nc config.NamedContext, homeFlag string) (Target, error) {
 	if strings.HasPrefix(sshTarget, "-") || strings.IndexFunc(sshTarget, unicode.IsSpace) >= 0 {
 		return Target{}, exitcode.Errorf(exitcode.Usage, "context %q: unsafe ssh target %q (want [user@]host)", nc.Name, sshTarget)
 	}
-	if strings.HasPrefix(ctx.Home, "~") {
+	if ctx.Home != "" && !path.IsAbs(ctx.Home) {
 		return Target{}, exitcode.Errorf(exitcode.Usage, "context %q: ssh home %q is not absolute (remote ~ expansion is unsupported)", nc.Name, ctx.Home)
 	}
 	s := fsx.SSH{Target: sshTarget, Identity: ctx.IdentityFile}

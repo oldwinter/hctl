@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -89,7 +90,13 @@ func Describe(w io.Writer, contextName string, s model.Snapshot) error {
 	fmt.Fprintf(&b, "Secret:            %s\n", secretCell(s))
 	if len(s.Aliases) > 0 {
 		fmt.Fprintf(&b, "Aliases:\n")
-		for k, v := range s.Aliases {
+		keys := make([]string, 0, len(s.Aliases))
+		for k := range s.Aliases {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			v := s.Aliases[k]
 			fmt.Fprintf(&b, "  %s: %s\n", k, v)
 		}
 	}

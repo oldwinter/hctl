@@ -148,6 +148,12 @@ func Load(path string) (*File, error) {
 	if f.Kind == "" {
 		f.Kind = KindConfig
 	}
+	if f.APIVersion != APIVersion {
+		return nil, fmt.Errorf("config apiVersion %q is unsupported (want %s)", f.APIVersion, APIVersion)
+	}
+	if f.Kind != KindConfig {
+		return nil, fmt.Errorf("config kind %q is unsupported (want %s)", f.Kind, KindConfig)
+	}
 	if len(f.Contexts) == 0 {
 		return Default(), nil
 	}
@@ -183,7 +189,7 @@ func Save(path string, f *File) error {
 	if err == nil && bytes.Equal(existing, data) {
 		return nil
 	}
-	if err == nil && len(existing) > 0 {
+	if err == nil {
 		if _, bakErr := fsx.BackupLocal(BackupDir(path), "config", path, existing); bakErr != nil {
 			return bakErr
 		}

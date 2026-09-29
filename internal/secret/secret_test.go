@@ -42,6 +42,9 @@ func TestLooksLikeSecret(t *testing.T) {
 	if !LooksLikeSecret(strings.Repeat("ab", 20)) { // 40 hex chars
 		t.Fatal("long hex should look like a secret")
 	}
+	if !LooksLikeSecret(strings.Repeat("AB", 20)) {
+		t.Fatal("uppercase long hex should look like a secret")
+	}
 }
 
 func TestEnvRef(t *testing.T) {
@@ -62,5 +65,12 @@ func TestRedact(t *testing.T) {
 	out := Redact("key sk-test-aaa end")
 	if strings.Contains(out, "sk-test-aaa") {
 		t.Fatalf("leaked: %s", out)
+	}
+}
+
+func TestRedactUppercaseHex(t *testing.T) {
+	raw := strings.Repeat("AB", 20)
+	if out := Redact("token " + raw); strings.Contains(out, raw) {
+		t.Fatalf("leaked uppercase hex: %s", out)
 	}
 }
