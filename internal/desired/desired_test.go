@@ -59,3 +59,14 @@ func TestDiffAgainstFullEndpoint(t *testing.T) {
 		t.Fatalf("unchanged endpoint should have no diff: %#v", changes)
 	}
 }
+
+func TestParseRejectsWrongDocumentIdentity(t *testing.T) {
+	for _, data := range []string{
+		"apiVersion: other/v1\nkind: DesiredState\n",
+		"apiVersion: harnessctl/v1\nkind: Config\n",
+	} {
+		if _, err := Parse([]byte(data), ".yaml"); err == nil {
+			t.Fatalf("accepted desired document with wrong identity: %q", data)
+		}
+	}
+}
