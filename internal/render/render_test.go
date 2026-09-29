@@ -108,7 +108,7 @@ func TestDescribeSortsAliases(t *testing.T) {
 		}
 		out := buf.String()
 		a, m, z := strings.Index(out, "A_MODEL"), strings.Index(out, "M_MODEL"), strings.Index(out, "Z_MODEL")
-		if !(a < m && m < z) {
+		if a >= m || m >= z {
 			t.Fatalf("aliases are not stable and sorted:\n%s", out)
 		}
 	}
