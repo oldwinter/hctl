@@ -40,7 +40,7 @@ var (
 	// Common vendor prefixes plus a generic long token. Never treat "sk-test"
 	// documentation mentions as the only pattern.
 	secretPattern = regexp.MustCompile(`(?i)\b(sk-[a-z0-9_-]{6,}|sk-ant-[a-z0-9_-]{8,}|sk-or-[a-z0-9_-]{8,}|sk-proj-[a-z0-9_-]{8,})\b`)
-	longHex       = regexp.MustCompile(`\b[a-f0-9]{32,}\b`)
+	longHex       = regexp.MustCompile(`(?i)\b[a-f0-9]{32,}\b`)
 )
 
 // LooksLikeSecret reports whether s appears to contain a raw API key or token.
