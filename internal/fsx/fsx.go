@@ -155,9 +155,6 @@ func randSuffix() string {
 
 // BackupLocal copies src bytes into a uniquely reserved local file (0600).
 func BackupLocal(destDir, harness, sourcePath string, src []byte) (string, error) {
-	if len(src) == 0 {
-		return "", nil
-	}
 	if err := os.MkdirAll(destDir, 0o700); err != nil {
 		return "", err
 	}
