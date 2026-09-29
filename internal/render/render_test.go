@@ -95,6 +95,25 @@ func TestJSONRedactsIfSecretSlipsIn(t *testing.T) {
 	}
 }
 
+func TestDescribeSortsAliases(t *testing.T) {
+	snapshot := model.Snapshot{Aliases: map[string]string{
+		"Z_MODEL": "z",
+		"A_MODEL": "a",
+		"M_MODEL": "m",
+	}}
+	for range 50 {
+		var buf strings.Builder
+		if err := Describe(&buf, "mba", snapshot); err != nil {
+			t.Fatal(err)
+		}
+		out := buf.String()
+		a, m, z := strings.Index(out, "A_MODEL"), strings.Index(out, "M_MODEL"), strings.Index(out, "Z_MODEL")
+		if !(a < m && m < z) {
+			t.Fatalf("aliases are not stable and sorted:\n%s", out)
+		}
+	}
+}
+
 func TestContextsTableEmptyNamesSetContext(t *testing.T) {
 	var buf strings.Builder
 	if err := ContextsTable(&buf, &config.File{}); err != nil {
