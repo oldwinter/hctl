@@ -94,3 +94,10 @@ func TestBlockComment(t *testing.T) {
 		t.Fatalf("%#v", v)
 	}
 }
+
+func TestBlockCommentCannotJoinNumberTokens(t *testing.T) {
+	var v map[string]any
+	if err := Unmarshal([]byte(`{"value": 1/* comment */2}`), &v); err == nil {
+		t.Fatalf("invalid JSONC parsed as %#v", v)
+	}
+}

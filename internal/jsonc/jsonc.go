@@ -60,11 +60,13 @@ func Strip(in []byte) ([]byte, error) {
 		switch state {
 		case normal:
 			if c == '/' && next == '/' {
+				out.WriteByte(' ')
 				state = lineComment
 				i++
 				continue
 			}
 			if c == '/' && next == '*' {
+				out.WriteByte(' ')
 				state = blockComment
 				i++
 				continue
