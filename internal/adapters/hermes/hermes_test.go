@@ -1,6 +1,7 @@
 package hermes
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,19 @@ import (
 	"github.com/oldwinter/hctl/internal/secret"
 	"github.com/oldwinter/hctl/internal/testutil"
 )
+
+type readErrorFS struct {
+	fsx.FS
+	path string
+	err  error
+}
+
+func (f readErrorFS) ReadFile(name string) ([]byte, error) {
+	if name == f.path {
+		return nil, f.err
+	}
+	return f.FS.ReadFile(name)
+}
 
 func TestReadHomeA(t *testing.T) {
 	snap, err := Adapter{}.Read(fsx.Local{}, testutil.Testdata(t, "home-a"))
@@ -156,6 +170,20 @@ func TestEmptyModelOnboarding(t *testing.T) {
 	}
 	if len(snap.Notes) == 0 {
 		t.Fatal("expected onboarding note")
+	}
+}
+
+func TestReadSurfacesDotEnvReadErrors(t *testing.T) {
+	home := t.TempDir()
+	writeConfig(t, home, "model: fixture-model\n")
+	envPath := filepath.Join(home, ".hermes", ".env")
+	want := errors.New("permission denied")
+	fsys := readErrorFS{FS: fsx.Local{}, path: envPath, err: want}
+	if _, err := (Adapter{}).Read(fsys, home); !errors.Is(err, want) {
+		t.Fatalf("err = %v, want %v", err, want)
+	}
+	if _, _, err := (Adapter{}).PeekSecret(fsys, home); !errors.Is(err, want) {
+		t.Fatalf("peek err = %v, want %v", err, want)
 	}
 }
 

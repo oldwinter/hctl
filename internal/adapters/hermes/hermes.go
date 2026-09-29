@@ -113,7 +113,14 @@ func (a Adapter) Read(fsys fsx.FS, home string) (model.Snapshot, error) {
 		snap.Notes = append(snap.Notes, "ambiguous Hermes custom provider endpoint; secret not selected")
 	}
 
-	envKeys, _ := parseDotEnvBytes(mustRead(fsys, envPath))
+	envData, err := fsx.ReadMaybe(fsys, envPath)
+	if err != nil {
+		return snap, err
+	}
+	envKeys, err := parseDotEnvBytes(envData)
+	if err != nil {
+		return snap, err
+	}
 	if snap.SecretRef != "" {
 		if val := envKeys[snap.SecretRef]; val != "" {
 			snap.SecretFingerprint = secret.Fingerprint(val)
@@ -282,11 +289,6 @@ func validateSecretRefProvider(providerID string) error {
 	return nil
 }
 
-func mustRead(fsys fsx.FS, path string) []byte {
-	data, _ := fsx.ReadMaybe(fsys, path)
-	return data
-}
-
 func parseDotEnvBytes(data []byte) (map[string]string, error) {
 	out := map[string]string{}
 	for _, line := range strings.Split(string(data), "\n") {
@@ -370,7 +372,14 @@ func (a Adapter) PeekSecret(fsys fsx.FS, home string) (ref, value string, err er
 		return "", p.APIKey, nil
 	}
 	envPath := fsys.Join(home, ".hermes", ".env")
-	keys, _ := parseDotEnvBytes(mustRead(fsys, envPath))
+	envData, err := fsx.ReadMaybe(fsys, envPath)
+	if err != nil {
+		return "", "", err
+	}
+	keys, err := parseDotEnvBytes(envData)
+	if err != nil {
+		return "", "", err
+	}
 	if snap.SecretRef != "" {
 		return snap.SecretRef, keys[snap.SecretRef], nil
 	}
