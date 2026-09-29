@@ -43,7 +43,7 @@ func TestBackupLocalReservesUniqueSourceIdentifiedFiles(t *testing.T) {
 }
 
 func TestBackupLocalPreservesEmptySource(t *testing.T) {
-	path, err := BackupLocal(t.TempDir(), "config", "/home/fixture/.hctl/config.yaml", nil)
+	path, err := BackupLocal(t.TempDir(), "config", "/home/fixture/.hctl/config.yaml", []byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
