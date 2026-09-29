@@ -138,3 +138,15 @@ func TestDefaultDialSSHTildeHome(t *testing.T) {
 		t.Fatalf("err = %v (code %d), want usage error", err, exitcode.From(err))
 	}
 }
+
+func TestDefaultDialRejectsRelativeSSHHome(t *testing.T) {
+	t.Setenv("HCTL_SSH", "1")
+	_, err := DefaultDial(named("box", config.Context{
+		Kind: config.KindSSH,
+		SSH:  "u@h",
+		Home: "relative/home",
+	}), "")
+	if exitcode.From(err) != exitcode.Usage {
+		t.Fatalf("err = %v (code %d), want usage error", err, exitcode.From(err))
+	}
+}
