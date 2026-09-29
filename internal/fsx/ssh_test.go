@@ -92,6 +92,13 @@ func TestSSHFileOpsThroughRemoteShell(t *testing.T) {
 	if !st.IsDir() {
 		t.Fatal("expected dir")
 	}
+	local, err := os.Stat(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := local.Mode().Perm(); got != 0o700 {
+		t.Fatalf("remote directory perm = %o, want 700", got)
+	}
 }
 
 func TestSSHLookPathCommandV(t *testing.T) {

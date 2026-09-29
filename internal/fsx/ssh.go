@@ -157,7 +157,8 @@ func (s SSH) Stat(name string) (os.FileInfo, error) {
 }
 
 func (s SSH) MkdirAll(name string, perm os.FileMode) error {
-	_, err := s.run(nil, fmt.Sprintf(`mkdir -p %s`, shq(name)))
+	mode := fmt.Sprintf("%04o", perm&0o777)
+	_, err := s.run(nil, fmt.Sprintf(`umask 077; mkdir -p -m %s %s`, mode, shq(name)))
 	return err
 }
 
