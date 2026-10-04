@@ -420,7 +420,7 @@ func TestApplyClaudeBacksUpExistingConfigFiles(t *testing.T) {
 	}
 }
 
-func TestCopySecretFailsClosedWithoutSelector(t *testing.T) {
+func TestPreflightSecretFailsClosedWithoutSelector(t *testing.T) {
 	src := testutil.Testdata(t, "home-a")
 	cases := []struct {
 		name    string
@@ -434,6 +434,7 @@ func TestCopySecretFailsClosedWithoutSelector(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dst := t.TempDir()
+			backups := t.TempDir()
 			path := filepath.Join(append([]string{dst}, tc.relPath...)...)
 			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 				t.Fatal(err)
@@ -441,16 +442,21 @@ func TestCopySecretFailsClosedWithoutSelector(t *testing.T) {
 			if err := os.WriteFile(path, []byte(tc.config), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			out, err := CopySecret(tc.ad, fsx.Local{}, src, fsx.Local{}, dst, true)
+			_, err := PreflightSecret(SecretRequest{
+				Adapter: tc.ad, SrcFS: fsx.Local{}, SrcHome: src,
+				DstFS: fsx.Local{}, DstHome: dst, PreferRef: true,
+				BackupDir: backups,
+			})
 			if err == nil || exitcode.From(err) != exitcode.Usage {
-				t.Fatalf("expected usage refusal, got out=%+v err=%v", out, err)
+				t.Fatalf("expected usage refusal, got err=%v", err)
 			}
-			if out.Copied {
-				t.Fatal("refused copy reported as copied")
+			entries, err := os.ReadDir(backups)
+			if err != nil || len(entries) != 0 {
+				t.Fatalf("refused preflight created backups: entries=%v err=%v", entries, err)
 			}
-			after, _ := os.ReadFile(path)
-			if string(after) != tc.config {
-				t.Fatalf("refused copy mutated config:\n%s", after)
+			after, err := os.ReadFile(path)
+			if err != nil || string(after) != tc.config {
+				t.Fatalf("refused preflight mutated config: err=%v", err)
 			}
 		})
 	}

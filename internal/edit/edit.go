@@ -12,46 +12,6 @@ import (
 	"github.com/oldwinter/hctl/internal/jsonc"
 )
 
-// Format names on-disk encodings we know how to mutate.
-type Format string
-
-const (
-	TOML   Format = "toml"
-	JSON   Format = "json"
-	JSONC  Format = "jsonc"
-	YAML   Format = "yaml"
-	DotEnv Format = "dotenv"
-)
-
-// Caveats documents format-preservation limits (surfaced in README).
-const Caveats = `
-TOML: line-oriented key updates keep comments and unrelated tables; new keys are appended.
-JSON: re-encoded with 2-space indent; key order may change. Strict JSON has no comments.
-JSONC: comments and trailing commas are dropped on write (parsed, then emitted as JSON).
-YAML: uses yaml.v3 nodes and keeps comments on untouched keys when the document is a mapping.
-`
-
-// Set updates a dotted path to a string value.
-func Set(src []byte, format Format, path []string, value string) ([]byte, error) {
-	if len(path) == 0 {
-		return nil, fmt.Errorf("edit: empty path")
-	}
-	switch format {
-	case TOML:
-		return SetTOML(src, path, value)
-	case JSON:
-		return SetJSON(src, path, value)
-	case JSONC:
-		return SetJSONC(src, path, value)
-	case YAML:
-		return SetYAML(src, path, value)
-	case DotEnv:
-		return SetDotEnv(src, path[len(path)-1], value)
-	default:
-		return nil, fmt.Errorf("edit: unknown format %q", format)
-	}
-}
-
 // SetJSON unmarshals an object, sets a nested string, and re-indents.
 func SetJSON(src []byte, path []string, value string) ([]byte, error) {
 	var root any

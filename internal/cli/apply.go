@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/hctl/internal/adapters"
+	"github.com/oldwinter/hctl/internal/config"
 	"github.com/oldwinter/hctl/internal/desired"
 	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/model"
@@ -60,7 +61,7 @@ Writing a JSONC file (OpenCode) drops comments and trailing commas.
 					Adapter:   ad,
 					FS:        fsys,
 					Home:      home,
-					BackupDir: mutate.DefaultBackupDir(opts.configPath),
+					BackupDir: config.BackupDir(opts.configPath),
 					Desired:   d,
 					DryRun:    dryRun,
 					Ownership: opts.ownershipOptions(),

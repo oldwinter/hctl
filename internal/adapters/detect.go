@@ -19,11 +19,6 @@ type commandProbePolicy interface {
 	CommandProbesAllowed() bool
 }
 
-// DetectBinary looks up the first name on the local PATH and optionally probes a version.
-func DetectBinary(names []string) (path string, version string, ok bool) {
-	return DetectBinaryFS(fsx.Local{}, names)
-}
-
 // DetectBinaryFS resolves binaries on fsys.
 // SSH contexts use remote `command -v` only — no remote --version (hang risk).
 func DetectBinaryFS(fsys fsx.FS, names []string) (path string, version string, ok bool) {

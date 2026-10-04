@@ -225,11 +225,3 @@ func (f *File) UseContext(name string) error {
 	f.CurrentContext = name
 	return nil
 }
-
-// Current returns the current named context.
-func (f *File) Current() (NamedContext, error) {
-	if f.CurrentContext == "" {
-		return NamedContext{}, fmt.Errorf("current-context is empty")
-	}
-	return f.Get(f.CurrentContext)
-}
