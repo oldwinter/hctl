@@ -18,12 +18,9 @@ type Target struct {
 	Home string
 }
 
-// Dial opens a filesystem for a context. Tests may replace this.
-var Dial = DefaultDial
-
-// DefaultDial is the only home resolver. --home / HCTL_HOME wins and
+// Dial is the only home resolver. --home / HCTL_HOME wins and
 // allows fixture tests even for ssh.
-func DefaultDial(nc config.NamedContext, homeFlag string) (Target, error) {
+func Dial(nc config.NamedContext, homeFlag string) (Target, error) {
 	if homeFlag != "" {
 		return Target{Name: nc.Name, FS: fsx.Local{}, Home: homeFlag}, nil
 	}

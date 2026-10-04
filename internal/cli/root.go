@@ -127,10 +127,6 @@ func configFileMissing(path string) bool {
 	return os.IsNotExist(err)
 }
 
-func writeErr(cmd *cobra.Command, err error) error {
-	return err
-}
-
 // Execute runs the CLI and annotates cobra unknown-command errors with a next step.
 func Execute() error {
 	return Run(NewRoot())

@@ -20,7 +20,7 @@ func TestSSHViaFakeRunner(t *testing.T) {
 	root := t.TempDir()
 	s := SSH{Target: "user@box", Run: testutil.SSHLocalRunner(t)}
 	p := s.Join(root, "file.txt")
-	if err := s.WriteFile(p, []byte("hello"), 0o600); err != nil {
+	if err := AtomicWrite(s, p, []byte("hello"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.ReadFile(p)
@@ -38,7 +38,7 @@ func TestSSHFileOpsThroughRemoteShell(t *testing.T) {
 
 	// Write (stdin) and read a path containing a space and an apostrophe.
 	p := s.Join(root, "we'ird dir", "file name.txt")
-	if err := s.WriteFile(p, []byte("hi there"), 0o600); err != nil {
+	if err := AtomicWrite(s, p, []byte("hi there"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.ReadFile(p)

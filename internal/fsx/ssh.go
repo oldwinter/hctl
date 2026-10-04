@@ -107,12 +107,6 @@ func (s SSH) ReadFile(name string) ([]byte, error) {
 	return out, err
 }
 
-func (s SSH) WriteFile(name string, data []byte, perm os.FileMode) error {
-	mode := fmt.Sprintf("%04o", perm&0o777)
-	_, err := s.run(data, fmt.Sprintf(`umask 077; mkdir -p %s; cat > %s; chmod %s %s`, shq(path.Dir(name)), shq(name), mode, shq(name)))
-	return err
-}
-
 // WriteNewFile fails with exit 17 (EEXIST) when name exists. The reservation
 // is mkdir of a sibling dir: it atomically rejects any existing entry, and the
 // payload is written inside that private dir so a path planted at name after

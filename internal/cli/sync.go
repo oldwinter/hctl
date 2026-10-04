@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oldwinter/hctl/internal/adapters"
+	"github.com/oldwinter/hctl/internal/config"
 	"github.com/oldwinter/hctl/internal/exitcode"
 	"github.com/oldwinter/hctl/internal/model"
 	"github.com/oldwinter/hctl/internal/mutate"
@@ -131,7 +132,7 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 						Adapter:   ad,
 						FS:        dstFS,
 						Home:      dstHome,
-						BackupDir: mutate.DefaultBackupDir(opts.configPath),
+						BackupDir: config.BackupDir(opts.configPath),
 						Desired:   d,
 						DryRun:    dryRun,
 						Ownership: opts.ownershipOptions(),
@@ -154,7 +155,7 @@ Risk: copying a bearer token duplicates a credential. Rotate if a host is untrus
 						DstHome:   dstHome,
 						Desired:   d,
 						DryRun:    dryRun,
-						BackupDir: mutate.DefaultBackupDir(opts.configPath),
+						BackupDir: config.BackupDir(opts.configPath),
 						Ownership: opts.ownershipOptions(),
 					})
 					if err != nil {

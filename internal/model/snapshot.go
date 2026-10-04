@@ -123,11 +123,6 @@ type DoctorCheck struct {
 	Message    string `json:"message,omitempty"`
 }
 
-// Healthy reports whether this harness looks ready to use.
-func (c DoctorCheck) Healthy() bool {
-	return c.Onboarding == "ok" && c.Config != "error"
-}
-
 // FieldDiff is one differing field between two snapshots.
 type FieldDiff struct {
 	Field string `json:"field"`

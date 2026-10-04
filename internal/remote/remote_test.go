@@ -14,9 +14,9 @@ func named(name string, ctx config.Context) config.NamedContext {
 	return config.NamedContext{Name: name, Context: ctx}
 }
 
-func TestDefaultDialHomeFlagWins(t *testing.T) {
+func TestDialHomeFlagWins(t *testing.T) {
 	home := t.TempDir()
-	tgt, err := DefaultDial(named("box", config.Context{
+	tgt, err := Dial(named("box", config.Context{
 		Kind: config.KindSSH,
 		SSH:  "u@h",
 	}), home)
@@ -31,7 +31,7 @@ func TestDefaultDialHomeFlagWins(t *testing.T) {
 	}
 }
 
-func TestDefaultDialKindInference(t *testing.T) {
+func TestDialKindInference(t *testing.T) {
 	t.Setenv("HCTL_SSH", "1")
 	for _, tc := range []struct {
 		name string
@@ -45,7 +45,7 @@ func TestDefaultDialKindInference(t *testing.T) {
 		{"neither", config.Context{Home: "/r"}, false, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			tgt, err := DefaultDial(named("c", tc.ctx), "")
+			tgt, err := Dial(named("c", tc.ctx), "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -67,21 +67,21 @@ func TestDefaultDialKindInference(t *testing.T) {
 	}
 }
 
-func TestDefaultDialUnknownKind(t *testing.T) {
+func TestDialUnknownKind(t *testing.T) {
 	for _, kind := range []string{"bogus", "SSH", "ssh ", " local"} {
-		_, err := DefaultDial(named("c", config.Context{Kind: kind, Home: "/r"}), "")
+		_, err := Dial(named("c", config.Context{Kind: kind, Home: "/r"}), "")
 		if exitcode.From(err) != exitcode.Usage {
 			t.Fatalf("kind %q: err = %v (code %d), want usage error", kind, err, exitcode.From(err))
 		}
 	}
 }
 
-func TestDefaultDialLocalTildeHome(t *testing.T) {
+func TestDialLocalTildeHome(t *testing.T) {
 	real, err := os.UserHomeDir()
 	if err != nil {
 		t.Skip("no user home")
 	}
-	tgt, err := DefaultDial(named("mba", config.Context{Kind: config.KindLocal, Home: "~/x"}), "")
+	tgt, err := Dial(named("mba", config.Context{Kind: config.KindLocal, Home: "~/x"}), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,9 +90,9 @@ func TestDefaultDialLocalTildeHome(t *testing.T) {
 	}
 }
 
-func TestDefaultDialSSHDisabled(t *testing.T) {
+func TestDialSSHDisabled(t *testing.T) {
 	t.Setenv("HCTL_SSH", "0")
-	_, err := DefaultDial(named("box", config.Context{
+	_, err := Dial(named("box", config.Context{
 		Kind: config.KindSSH,
 		SSH:  "u@h",
 		Home: "/r",
@@ -102,9 +102,9 @@ func TestDefaultDialSSHDisabled(t *testing.T) {
 	}
 }
 
-func TestDefaultDialSSHEmptyTarget(t *testing.T) {
+func TestDialSSHEmptyTarget(t *testing.T) {
 	t.Setenv("HCTL_SSH", "1")
-	_, err := DefaultDial(named("box", config.Context{
+	_, err := Dial(named("box", config.Context{
 		Kind: config.KindSSH,
 		Home: "/r",
 	}), "")
@@ -113,10 +113,10 @@ func TestDefaultDialSSHEmptyTarget(t *testing.T) {
 	}
 }
 
-func TestDefaultDialSSHUnsafeTarget(t *testing.T) {
+func TestDialSSHUnsafeTarget(t *testing.T) {
 	t.Setenv("HCTL_SSH", "1")
 	for _, target := range []string{"-oProxyCommand=x", "-F", "u@h extra", "u@h\tx"} {
-		_, err := DefaultDial(named("box", config.Context{
+		_, err := Dial(named("box", config.Context{
 			Kind: config.KindSSH,
 			SSH:  target,
 			Home: "/r",
@@ -127,9 +127,9 @@ func TestDefaultDialSSHUnsafeTarget(t *testing.T) {
 	}
 }
 
-func TestDefaultDialSSHTildeHome(t *testing.T) {
+func TestDialSSHTildeHome(t *testing.T) {
 	t.Setenv("HCTL_SSH", "1")
-	_, err := DefaultDial(named("box", config.Context{
+	_, err := Dial(named("box", config.Context{
 		Kind: config.KindSSH,
 		SSH:  "u@h",
 		Home: "~/x",
@@ -139,9 +139,9 @@ func TestDefaultDialSSHTildeHome(t *testing.T) {
 	}
 }
 
-func TestDefaultDialRejectsRelativeSSHHome(t *testing.T) {
+func TestDialRejectsRelativeSSHHome(t *testing.T) {
 	t.Setenv("HCTL_SSH", "1")
-	_, err := DefaultDial(named("box", config.Context{
+	_, err := Dial(named("box", config.Context{
 		Kind: config.KindSSH,
 		SSH:  "u@h",
 		Home: "relative/home",

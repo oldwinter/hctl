@@ -18,7 +18,6 @@ import (
 // FS is the small file API used by readers and writers (local or SSH).
 type FS interface {
 	ReadFile(name string) ([]byte, error)
-	WriteFile(name string, data []byte, perm os.FileMode) error
 	// WriteNewFile creates name exclusively and fails with fs.ErrExist when
 	// the name is taken — including entries planted after any preliminary
 	// check. It never follows a planted symlink. On failure it removes
@@ -36,9 +35,6 @@ type FS interface {
 type Local struct{}
 
 func (Local) ReadFile(name string) ([]byte, error) { return os.ReadFile(name) }
-func (Local) WriteFile(name string, data []byte, perm os.FileMode) error {
-	return os.WriteFile(name, data, perm)
-}
 func (Local) WriteNewFile(name string, data []byte, perm os.FileMode) error {
 	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 	if err != nil {
@@ -109,11 +105,6 @@ func ReadMaybe(fsys FS, name string) ([]byte, error) {
 func Exists(fsys FS, name string) bool {
 	st, err := fsys.Stat(name)
 	return err == nil && !st.IsDir()
-}
-
-func ExistsAny(fsys FS, name string) bool {
-	_, err := fsys.Stat(name)
-	return err == nil
 }
 
 // AtomicWrite writes via a uniquely reserved sibling temp file then rename.

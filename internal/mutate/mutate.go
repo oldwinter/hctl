@@ -110,7 +110,7 @@ func ApplyPrepared(plan Plan) (model.ApplyReport, error) {
 		return rep, nil
 	}
 	if req.BackupDir == "" {
-		req.BackupDir = DefaultBackupDir("")
+		req.BackupDir = config.BackupDir("")
 	}
 	// Back up every known config before invoking a writer that may partially
 	// mutate files and return an error without reporting their paths.
@@ -165,12 +165,6 @@ func changesFromDesired(req Request, snap model.Snapshot) ([]model.Change, error
 		endpoint = &current
 	}
 	return model.ChangesFromDesired(snap.Name, snap, req.Desired, endpoint), nil
-}
-
-// DefaultBackupDir is $HCTL_BACKUP_DIR, else $HARNESSCTL_BACKUP_DIR, else
-// backups/ beside the resolved config file.
-func DefaultBackupDir(configPath string) string {
-	return config.BackupDir(configPath)
 }
 
 // SecretRequest describes a destination-guarded secret transfer.
@@ -267,7 +261,7 @@ func ApplyPreparedSecret(plan SecretPlan) (model.SecretCopy, error) {
 	}
 	backupDir := plan.req.BackupDir
 	if backupDir == "" {
-		backupDir = DefaultBackupDir("")
+		backupDir = config.BackupDir("")
 	}
 	for _, path := range plan.destinationPaths {
 		data, err := fsx.ReadMaybe(plan.req.DstFS, path)
@@ -302,15 +296,4 @@ func ApplyPreparedSecret(plan SecretPlan) (model.SecretCopy, error) {
 	out.To = after.SecretFingerprint
 	out.Copied = true
 	return out, nil
-}
-
-// CopySecret transfers a secret or env-ref from src to dst. Values are never returned.
-func CopySecret(ad adapters.Adapter, srcFS fsx.FS, srcHome string, dstFS fsx.FS, dstHome string, preferRef bool) (model.SecretCopy, error) {
-	plan, err := PreflightSecret(SecretRequest{
-		Adapter: ad, SrcFS: srcFS, SrcHome: srcHome, DstFS: dstFS, DstHome: dstHome, PreferRef: preferRef,
-	})
-	if err != nil {
-		return plan.out, err
-	}
-	return ApplyPreparedSecret(plan)
 }
